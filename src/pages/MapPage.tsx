@@ -3,7 +3,7 @@ import { SakeItem } from '../types';
 
 interface MapPageProps {
   allSake: SakeItem[];
-  onSakeClick: (sake: SakeItem) => void;
+  onSakeClick: (sakeId: string) => void;
 }
 
 // 日本各縣市的大致座標（緯度、經度）
@@ -148,7 +148,7 @@ export function MapPage({ allSake, onSakeClick }: MapPageProps) {
               {selectedSakes.map((sake) => (
                 <button
                   key={sake.id}
-                  onClick={() => onSakeClick(sake)}
+                  onClick={() => onSakeClick(sake.id)}
                   className="w-full bg-gray-800 rounded-xl p-3 flex items-center gap-3 hover:bg-gray-700 transition-colors text-left"
                 >
                   {sake.imageUrl ? (

@@ -1,15 +1,15 @@
 import { useMemo } from 'react';
 import { SakeItem } from '../types';
 
-interface FilterOptions {
+interface FilterParams {
   searchQuery: string;
-  selectedType: string;
-  selectedRice: string;
-  selectedFlavor: string;
-  selectedPrefecture: string;
+  sakeType?: string;
+  riceType?: string;
+  flavorProfile?: string;
+  prefecture?: string;
 }
 
-export function useSakeFilter(allSake: SakeItem[], filters: FilterOptions): SakeItem[] {
+export function useSakeFilter(allSake: SakeItem[], filters: FilterParams): SakeItem[] {
   return useMemo(() => {
     return allSake.filter((sake) => {
       // 搜尋
@@ -25,26 +25,26 @@ export function useSakeFilter(allSake: SakeItem[], filters: FilterOptions): Sake
       }
 
       // 酒體類型
-      if (filters.selectedType && sake.type !== filters.selectedType) return false;
+      if (filters.sakeType && sake.type !== filters.sakeType) return false;
 
       // 米種
-      if (filters.selectedRice && sake.rice !== filters.selectedRice) return false;
+      if (filters.riceType && sake.rice !== filters.riceType) return false;
 
       // 風味
-      if (filters.selectedFlavor && sake.flavorType !== filters.selectedFlavor) return false;
+      if (filters.flavorProfile && sake.flavor !== filters.flavorProfile) return false;
 
       // 縣市
-      if (filters.selectedPrefecture && sake.prefecture !== filters.selectedPrefecture) return false;
+      if (filters.prefecture && sake.prefecture !== filters.prefecture) return false;
 
       return true;
     });
-  }, [allSake, filters.searchQuery, filters.selectedType, filters.selectedRice, filters.selectedFlavor, filters.selectedPrefecture]);
+  }, [allSake, filters.searchQuery, filters.sakeType, filters.riceType, filters.flavorProfile, filters.prefecture]);
 }
 
 export function getFilterOptions(allSake: SakeItem[]) {
   const types = [...new Set(allSake.map((s) => s.type).filter(Boolean))].sort() as string[];
   const rices = [...new Set(allSake.map((s) => s.rice).filter(Boolean))].sort() as string[];
-  const flavors = [...new Set(allSake.map((s) => s.flavorType).filter(Boolean))].sort() as string[];
+  const flavors = [...new Set(allSake.map((s) => s.flavor).filter(Boolean))].sort() as string[];
   const prefectures = [...new Set(allSake.map((s) => s.prefecture).filter(Boolean))].sort() as string[];
 
   return { types, rices, flavors, prefectures };
