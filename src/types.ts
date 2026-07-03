@@ -7,12 +7,25 @@ export interface SakeItem {
   rice?: string;
   riceParsed?: string;       // 解析後的米種（不含精米步合）
   seimai?: string;           // 精米步合
-  flavor?: string;
+  brewingNote?: string;      // 製法備註（生酒、無濾過等）
+  otherNote?: string;        // 其他備註
+  alcoholContent?: string;   // 酒精濃度
+  sakeLevel?: string;        // 日本酒度
+  yeast?: string;            // 酵母
+  bodyType?: string;         // 酒體分類（薰/爽/醇/熟）
+  flavor?: string;           // 風味分類
+  description?: string;      // 說明（品飲筆記）
+  // 五維評分（1-5）
+  aroma?: number;            // 香氣
+  smoothness?: number;       // 順口
+  tasteScore?: number;       // 酒味
+  complexity?: number;       // 層次
+  sweetness?: number;        // 甜度
   rating?: number;
   notes?: string;
   imageUrl?: string;
   keywords?: string[];
-  firstDrinkDate?: string;   // 品飲日期，格式 YYYY/M/D
+  firstDrinkDate?: string;   // 品飲日期，格式 YYYY/M/D（不顯示）
 }
 
 export interface FilterOptions {
