@@ -64,12 +64,11 @@ export function MapPage({ allSake, onSakeClick }: MapPageProps) {
       </div>
 
       {/* 地圖區域（純底圖，無圓點） */}
-      <div className="mx-4 mb-3 rounded-2xl overflow-hidden bg-[#0f172a]">
+      <div className="relative mx-4 mb-3 rounded-2xl overflow-hidden bg-[#0f172a]" style={{ aspectRatio: '1/1' }}>
         <img
           src={MAP_IMAGE_URL}
           alt="日本地圖"
-          className="w-full object-contain"
-          style={{ display: 'block' }}
+          className="absolute inset-0 w-full h-full object-contain"
         />
       </div>
 
