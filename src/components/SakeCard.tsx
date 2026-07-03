@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { SakeItem } from '../types';
 import { Star } from 'lucide-react';
 
@@ -9,6 +9,11 @@ interface SakeCardProps {
 
 export function SakeCard({ sake, onClick }: SakeCardProps) {
   const displayRice = sake.riceParsed || sake.rice;
+  const [imgLoaded, setImgLoaded] = useState(false);
+  const [imgError, setImgError] = useState(false);
+
+  const showImage = sake.imageUrl && !imgError;
+  const showPlaceholder = !sake.imageUrl || imgError || !imgLoaded;
 
   return (
     <div
@@ -17,25 +22,23 @@ export function SakeCard({ sake, onClick }: SakeCardProps) {
     >
       {/* 左側：直向照片（固定寬度，object-position: center 自動置中酒瓶） */}
       <div className="w-28 flex-shrink-0 relative overflow-hidden bg-gray-800">
-        {sake.imageUrl ? (
+        {/* 佔位符：圖片載入完成前始終顯示 */}
+        {showPlaceholder && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className="text-3xl opacity-30">🍶</span>
+          </div>
+        )}
+        {/* 圖片：載入完成後才顯示 */}
+        {showImage && (
           <img
             src={sake.imageUrl}
             alt={sake.name}
             className="absolute inset-0 w-full h-full object-cover object-center"
-            onError={(e) => {
-              const target = e.currentTarget;
-              target.style.display = 'none';
-              const placeholder = target.nextElementSibling as HTMLElement;
-              if (placeholder) placeholder.style.display = 'flex';
-            }}
+            style={{ opacity: imgLoaded ? 1 : 0, transition: 'opacity 0.2s ease' }}
+            onLoad={() => setImgLoaded(true)}
+            onError={() => setImgError(true)}
           />
-        ) : null}
-        <div
-          className="absolute inset-0 flex items-center justify-center"
-          style={{ display: sake.imageUrl ? 'none' : 'flex' }}
-        >
-          <span className="text-3xl opacity-30">🍶</span>
-        </div>
+        )}
       </div>
 
       {/* 右側：文字在上，標籤在下 */}
