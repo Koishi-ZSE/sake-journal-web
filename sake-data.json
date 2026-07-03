@@ -776,7 +776,7 @@
   {
     "id": "39",
     "name": "本州一",
-    "prefecture": "広島",
+    "prefecture": "廣島",
     "brewery": "梅田酒造場",
     "type": "純米吟釀",
     "rice": "八反錦/60",
@@ -798,7 +798,7 @@
   {
     "id": "40",
     "name": "雨後の月",
-    "prefecture": "広島",
+    "prefecture": "廣島",
     "brewery": "相原酒造",
     "type": "純米酒",
     "rice": "國產/60/65",
@@ -819,7 +819,7 @@
   {
     "id": "41",
     "name": "雨後の月",
-    "prefecture": "広島",
+    "prefecture": "廣島",
     "brewery": "相原酒造",
     "type": "純米大吟釀",
     "rice": "國產/40/50",
@@ -839,7 +839,7 @@
   {
     "id": "42",
     "name": "醉心",
-    "prefecture": "広島",
+    "prefecture": "廣島",
     "brewery": "酔心山根本店",
     "type": "純米酒",
     "rice": "山田錦(麴)\n縣產(掛)/65",
@@ -861,7 +861,7 @@
   {
     "id": "43",
     "name": "瑞冠",
-    "prefecture": "広島",
+    "prefecture": "廣島",
     "brewery": "山岡酒造",
     "type": "純米酒",
     "rice": "山田錦/70",
@@ -880,7 +880,7 @@
   {
     "id": "44",
     "name": "神雷",
-    "prefecture": "広島",
+    "prefecture": "廣島",
     "brewery": "三輪酒造",
     "type": "純米酒",
     "rice": "八反錦/65",
@@ -923,7 +923,7 @@
   {
     "id": "46",
     "name": "賀茂泉-朝しぼり",
-    "prefecture": "広島",
+    "prefecture": "廣島",
     "brewery": "賀茂泉酒造",
     "type": "純米酒",
     "brewingNote": "無濾過生原酒",
@@ -962,7 +962,7 @@
   {
     "id": "48",
     "name": "賀茂金秀",
-    "prefecture": "広島",
+    "prefecture": "廣島",
     "brewery": "金光酒造",
     "type": "特別純米酒",
     "rice": "赤磐雄町(麴)\n八反錦(掛)/50/60",
@@ -1149,7 +1149,7 @@
   {
     "id": "57",
     "name": "華鳩",
-    "prefecture": "広島",
+    "prefecture": "廣島",
     "brewery": "榎酒造",
     "type": "其他/未標註",
     "rice": "縣產中生新千本/65",

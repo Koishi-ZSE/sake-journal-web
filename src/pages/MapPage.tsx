@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { SakeItem } from '../types';
 
 interface MapPageProps {
@@ -6,170 +6,241 @@ interface MapPageProps {
   onSakeClick: (sakeId: string) => void;
 }
 
-// 日本各縣市的大致座標（緯度、經度）
-const prefectureCoords: Record<string, { lat: number; lng: number }> = {
-  '北海道': { lat: 43.06, lng: 141.35 },
-  '青森': { lat: 40.82, lng: 140.74 },
-  '岩手': { lat: 39.70, lng: 141.15 },
-  '宮城': { lat: 38.27, lng: 140.87 },
-  '秋田': { lat: 39.72, lng: 140.10 },
-  '山形': { lat: 38.24, lng: 140.36 },
-  '福島': { lat: 37.75, lng: 140.47 },
-  '茨城': { lat: 36.34, lng: 140.45 },
-  '栃木': { lat: 36.57, lng: 139.88 },
-  '群馬': { lat: 36.39, lng: 139.06 },
-  '埼玉': { lat: 35.86, lng: 139.65 },
-  '千葉': { lat: 35.61, lng: 140.12 },
-  '東京': { lat: 35.69, lng: 139.69 },
-  '神奈川': { lat: 35.45, lng: 139.64 },
-  '新潟': { lat: 37.90, lng: 139.02 },
-  '富山': { lat: 36.70, lng: 137.21 },
-  '石川': { lat: 36.59, lng: 136.63 },
-  '福井': { lat: 36.07, lng: 136.22 },
-  '山梨': { lat: 35.66, lng: 138.57 },
-  '長野': { lat: 36.65, lng: 138.18 },
-  '岐阜': { lat: 35.39, lng: 136.72 },
-  '静岡': { lat: 34.98, lng: 138.38 },
-  '愛知': { lat: 35.18, lng: 136.91 },
-  '三重': { lat: 34.73, lng: 136.51 },
-  '滋賀': { lat: 35.00, lng: 135.87 },
-  '京都': { lat: 35.02, lng: 135.76 },
-  '大阪': { lat: 34.69, lng: 135.50 },
-  '兵庫': { lat: 34.69, lng: 135.18 },
-  '奈良': { lat: 34.69, lng: 135.83 },
-  '和歌山': { lat: 34.23, lng: 135.17 },
-  '鳥取': { lat: 35.50, lng: 134.24 },
-  '島根': { lat: 35.47, lng: 133.05 },
-  '岡山': { lat: 34.66, lng: 133.93 },
-  '広島': { lat: 34.40, lng: 132.46 },
-  '山口': { lat: 34.19, lng: 131.47 },
-  '徳島': { lat: 34.07, lng: 134.56 },
-  '香川': { lat: 34.34, lng: 134.04 },
-  '愛媛': { lat: 33.84, lng: 132.77 },
-  '高知': { lat: 33.56, lng: 133.53 },
-  '福岡': { lat: 33.61, lng: 130.42 },
-  '佐賀': { lat: 33.25, lng: 130.30 },
-  '長崎': { lat: 32.74, lng: 129.87 },
-  '熊本': { lat: 32.79, lng: 130.74 },
-  '大分': { lat: 33.24, lng: 131.61 },
-  '宮崎': { lat: 31.91, lng: 131.42 },
-  '鹿児島': { lat: 31.56, lng: 130.56 },
-  '沖縄': { lat: 26.21, lng: 127.68 },
+// 日本地圖圖片尺寸：2000x2000px
+// 以下座標為各縣市中心點在 2000x2000 圖片上的像素位置（x, y）
+// 圖片左上角為 (0,0)，右下角為 (2000,2000)
+const PREFECTURE_POSITIONS: Record<string, { x: number; y: number }> = {
+  // 北海道・東北
+  '北海道': { x: 1480, y: 220 },
+  '青森': { x: 1230, y: 490 },
+  '岩手': { x: 1280, y: 590 },
+  '秋田': { x: 1160, y: 570 },
+  '宮城': { x: 1300, y: 660 },
+  '山形': { x: 1190, y: 650 },
+  '福島': { x: 1240, y: 730 },
+  // 関東
+  '茨城': { x: 1310, y: 800 },
+  '栃木': { x: 1240, y: 790 },
+  '群馬': { x: 1190, y: 790 },
+  '埼玉': { x: 1240, y: 830 },
+  '千葉': { x: 1320, y: 850 },
+  // 甲信越・北陸
+  '新潟': { x: 1160, y: 720 },
+  '富山': { x: 1090, y: 760 },
+  '石川': { x: 1040, y: 770 },
+  '福井': { x: 1020, y: 800 },
+  '山梨': { x: 1200, y: 840 },
+  '長野': { x: 1160, y: 810 },
+  // 東海
+  '愛知': { x: 1120, y: 870 },
+  '三重': { x: 1100, y: 900 },
+  // 近畿
+  '滋賀': { x: 1050, y: 855 },
+  '京都': { x: 1020, y: 860 },
+  '奈良': { x: 1050, y: 890 },
+  '和歌山': { x: 1030, y: 930 },
+  // 中国
+  '山口': { x: 870, y: 940 },
+  '廣島': { x: 920, y: 920 },
+  // 四国
+  '愛媛': { x: 930, y: 980 },
+  '高知': { x: 980, y: 1010 },
+  // 九州
+  '福岡': { x: 820, y: 1000 },
+  '佐賀': { x: 790, y: 1020 },
+  '長崎': { x: 760, y: 1040 },
+  '熊本': { x: 840, y: 1060 },
+  '大分': { x: 900, y: 1030 },
 };
 
+// 由北到南的縣市順序（用於按鈕排列）
+const PREFECTURE_ORDER = [
+  '北海道',
+  '青森', '岩手', '秋田',
+  '宮城', '山形', '福島',
+  '茨城', '栃木', '群馬',
+  '埼玉', '千葉',
+  '新潟', '富山', '石川',
+  '福井', '山梨', '長野',
+  '愛知', '三重',
+  '滋賀', '京都', '奈良',
+  '和歌山',
+  '山口', '廣島',
+  '愛媛', '高知',
+  '福岡', '佐賀', '長崎',
+  '熊本', '大分',
+];
+
+// 日本地圖底圖 URL（Cloudinary，淺灰色 CSS filter）
+const MAP_IMAGE_URL = 'https://res.cloudinary.com/lyuww36c/image/upload/v1783097960/japan_map_base.png';
+
 export function MapPage({ allSake, onSakeClick }: MapPageProps) {
-  const [selectedPref, setSelectedPref] = useState<string | null>(null);
+  const [selectedPrefecture, setSelectedPrefecture] = useState<string | null>(null);
 
-  // 按縣市分組
-  const byPrefecture = allSake.reduce<Record<string, SakeItem[]>>((acc, sake) => {
-    const pref = sake.prefecture || '不明';
-    if (!acc[pref]) acc[pref] = [];
-    acc[pref].push(sake);
-    return acc;
-  }, {});
+  // 取得資料中實際存在的縣市
+  const availablePrefectures = useMemo(() => {
+    const set = new Set(allSake.map((s) => s.prefecture).filter(Boolean));
+    return PREFECTURE_ORDER.filter((p) => set.has(p));
+  }, [allSake]);
 
-  const prefectures = Object.keys(byPrefecture).sort();
-  const selectedSakes = selectedPref ? byPrefecture[selectedPref] || [] : [];
+  // 各縣市的酒款數量
+  const countByPrefecture = useMemo(() => {
+    const map: Record<string, number> = {};
+    allSake.forEach((s) => {
+      if (s.prefecture) map[s.prefecture] = (map[s.prefecture] || 0) + 1;
+    });
+    return map;
+  }, [allSake]);
 
-  // 計算地圖範圍
-  const minLat = 30, maxLat = 45, minLng = 129, maxLng = 146;
-  const mapWidth = 320, mapHeight = 400;
+  // 選中縣市的酒款
+  const selectedSakes = useMemo(() => {
+    if (!selectedPrefecture) return [];
+    return allSake.filter((s) => s.prefecture === selectedPrefecture);
+  }, [allSake, selectedPrefecture]);
 
-  const toX = (lng: number) => ((lng - minLng) / (maxLng - minLng)) * mapWidth;
-  const toY = (lat: number) => ((maxLat - lat) / (maxLat - minLat)) * mapHeight;
+  const handlePrefectureClick = (pref: string) => {
+    setSelectedPrefecture(pref === selectedPrefecture ? null : pref);
+  };
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
-      <div className="p-4">
-        <h1 className="text-xl font-bold text-amber-400 mb-4">產地地圖</h1>
+    <div className="flex flex-col h-full bg-gray-950 text-white">
+      {/* 標題 */}
+      <div className="px-4 pt-4 pb-2">
+        <h1 className="text-xl font-bold text-amber-400">產地地圖</h1>
+        <p className="text-xs text-gray-400 mt-0.5">{allSake.length} 款 · {availablePrefectures.length} 個產地</p>
+      </div>
 
-        {/* 地圖區域 */}
-        <div className="bg-gray-800 rounded-xl p-4 mb-4 overflow-x-auto">
-          <svg width={mapWidth} height={mapHeight} className="mx-auto">
-            {/* 背景 */}
-            <rect width={mapWidth} height={mapHeight} fill="#1e293b" rx="8" />
+      {/* 地圖區域 */}
+      <div className="relative mx-4 mb-3 rounded-2xl overflow-hidden bg-gray-900" style={{ aspectRatio: '1/1' }}>
+        {/* 底圖（淺灰色） */}
+        <img
+          src={MAP_IMAGE_URL}
+          alt="日本地圖"
+          className="absolute inset-0 w-full h-full object-contain"
+          style={{ filter: 'brightness(0) invert(1) opacity(0.15)' }}
+        />
 
-            {/* 各縣市的點 */}
-            {prefectures.map((pref) => {
-              const coords = prefectureCoords[pref];
-              if (!coords) return null;
-              const x = toX(coords.lng);
-              const y = toY(coords.lat);
-              const count = byPrefecture[pref].length;
-              const isSelected = selectedPref === pref;
-              const radius = Math.min(4 + count * 1.5, 16);
+        {/* 縣市圓點 */}
+        {availablePrefectures.map((pref) => {
+          const pos = PREFECTURE_POSITIONS[pref];
+          if (!pos) return null;
+          const count = countByPrefecture[pref] || 0;
+          const isSelected = selectedPrefecture === pref;
+          // 將 2000x2000 座標轉換為百分比
+          const xPct = (pos.x / 2000) * 100;
+          const yPct = (pos.y / 2000) * 100;
 
-              return (
-                <g key={pref} onClick={() => setSelectedPref(isSelected ? null : pref)} style={{ cursor: 'pointer' }}>
-                  <circle
-                    cx={x}
-                    cy={y}
-                    r={radius}
-                    fill={isSelected ? '#f59e0b' : '#3b82f6'}
-                    opacity={0.85}
-                    stroke={isSelected ? '#fbbf24' : '#60a5fa'}
-                    strokeWidth={1.5}
-                  />
-                  <text x={x} y={y + 1} textAnchor="middle" dominantBaseline="middle" fill="white" fontSize="9" fontWeight="bold">
-                    {count}
-                  </text>
-                </g>
-              );
-            })}
-          </svg>
-          <p className="text-center text-gray-400 text-xs mt-2">點擊圓點查看該縣市的酒款</p>
-        </div>
-
-        {/* 縣市列表 */}
-        <div className="grid grid-cols-3 gap-2 mb-4">
-          {prefectures.map((pref) => (
+          return (
             <button
               key={pref}
-              onClick={() => setSelectedPref(selectedPref === pref ? null : pref)}
-              className={`text-sm py-2 px-3 rounded-lg text-left transition-colors ${
-                selectedPref === pref
-                  ? 'bg-amber-500 text-black font-bold'
-                  : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-              }`}
+              onClick={() => handlePrefectureClick(pref)}
+              style={{
+                position: 'absolute',
+                left: `${xPct}%`,
+                top: `${yPct}%`,
+                transform: 'translate(-50%, -50%)',
+              }}
+              className="flex flex-col items-center group"
             >
-              <span>{pref}</span>
-              <span className="ml-1 text-xs opacity-70">({byPrefecture[pref].length})</span>
+              {/* 圓點 */}
+              <div
+                className={`rounded-full flex items-center justify-center font-bold transition-all ${
+                  isSelected
+                    ? 'bg-amber-400 text-gray-900 shadow-lg shadow-amber-400/50'
+                    : 'bg-amber-600/80 text-white hover:bg-amber-400 hover:text-gray-900'
+                }`}
+                style={{
+                  width: isSelected ? 28 : 22,
+                  height: isSelected ? 28 : 22,
+                  fontSize: isSelected ? 10 : 9,
+                }}
+              >
+                {count}
+              </div>
+              {/* 縣市名稱（選中時顯示） */}
+              {isSelected && (
+                <div className="absolute -bottom-5 whitespace-nowrap text-xs font-bold text-amber-400 bg-gray-900/90 px-1 rounded">
+                  {pref}
+                </div>
+              )}
             </button>
-          ))}
-        </div>
-
-        {/* 選中縣市的酒款列表 */}
-        {selectedPref && (
-          <div>
-            <h2 className="text-lg font-bold text-amber-400 mb-3">
-              {selectedPref}（{selectedSakes.length} 款）
-            </h2>
-            <div className="space-y-2">
-              {selectedSakes.map((sake) => (
-                <button
-                  key={sake.id}
-                  onClick={() => onSakeClick(sake.id)}
-                  className="w-full bg-gray-800 rounded-xl p-3 flex items-center gap-3 hover:bg-gray-700 transition-colors text-left"
-                >
-                  {sake.imageUrl ? (
-                    <img src={sake.imageUrl} alt={sake.name} className="w-12 h-16 object-cover rounded-lg flex-shrink-0" />
-                  ) : (
-                    <div className="w-12 h-16 bg-gray-700 rounded-lg flex items-center justify-center flex-shrink-0 text-xl">🍶</div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-white truncate">{sake.name}</p>
-                    <p className="text-sm text-gray-400 truncate">{sake.brewery}</p>
-                    <div className="flex items-center gap-1 mt-1">
-                      <span className="text-amber-400 text-xs">★ {sake.rating}</span>
-                      {sake.type && <span className="text-xs bg-blue-900 text-blue-300 px-2 py-0.5 rounded-full">{sake.type}</span>}
-                    </div>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+          );
+        })}
       </div>
+
+      {/* 縣市按鈕列（由北到南，由左至右） */}
+      <div className="px-4 mb-3">
+        <div className="flex flex-wrap gap-2">
+          {availablePrefectures.map((pref) => {
+            const count = countByPrefecture[pref] || 0;
+            const isSelected = selectedPrefecture === pref;
+            return (
+              <button
+                key={pref}
+                onClick={() => handlePrefectureClick(pref)}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                  isSelected
+                    ? 'bg-amber-400 text-gray-900'
+                    : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                }`}
+              >
+                {pref} <span className="opacity-70">{count}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 選中縣市的酒款列表 */}
+      {selectedPrefecture && (
+        <div className="flex-1 overflow-y-auto px-4 pb-4">
+          <h2 className="text-sm font-semibold text-amber-400 mb-2">
+            {selectedPrefecture} · {selectedSakes.length} 款
+          </h2>
+          <div className="space-y-2">
+            {selectedSakes.map((sake) => (
+              <button
+                key={sake.id}
+                onClick={() => onSakeClick(sake.id)}
+                className="w-full bg-gray-800 rounded-xl p-3 flex items-center gap-3 hover:bg-gray-700 transition-colors text-left"
+              >
+                {sake.imageUrl ? (
+                  <img
+                    src={sake.imageUrl}
+                    alt={sake.name}
+                    className="w-10 h-14 object-cover rounded-lg flex-shrink-0"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = 'none';
+                    }}
+                  />
+                ) : (
+                  <div className="w-10 h-14 bg-gray-700 rounded-lg flex-shrink-0 flex items-center justify-center text-lg">
+                    🍶
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-white text-sm truncate">{sake.name}</div>
+                  <div className="text-xs text-gray-400 truncate">{sake.brewery}</div>
+                  {sake.type && (
+                    <div className="text-xs text-amber-500 mt-0.5">{sake.type}</div>
+                  )}
+                </div>
+                {sake.rating && (
+                  <div className="text-amber-400 text-sm font-bold flex-shrink-0">
+                    ★ {sake.rating}
+                  </div>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {!selectedPrefecture && (
+        <div className="flex-1 flex items-center justify-center text-gray-500 text-sm pb-8">
+          點擊地圖上的圓點或下方按鈕查看酒款
+        </div>
+      )}
     </div>
   );
 }
