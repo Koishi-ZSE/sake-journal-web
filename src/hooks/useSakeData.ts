@@ -2,9 +2,12 @@ import { useState, useEffect, useMemo } from 'react';
 import { SakeItem, CustomSake, parseRiceField } from '../types';
 import sakeDataRaw from '../../sake-data.json';
 
+// Google Apps Script Web App URL
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbwd3UjQw1XtncTd6k_xBSIsXYgVytiXc-jA0AhwbiwwjGsujc4coFsKgAEYPtVgBkzW/exec';
+
+// localStorage 快取 key（作為離線備份）
 const CUSTOM_SAKE_KEY = 'sake_journal_custom_sake';
-const IMAGE_OVERRIDES_KEY = 'sake_journal_image_overrides';  // 原始酒款圖片替換
-const FIELD_OVERRIDES_KEY = 'sake_journal_field_overrides';  // 原始酒款欄位覆寫
+const OVERRIDES_CACHE_KEY = 'sake_journal_overrides_cache';
 
 // 解析日期字串為可排序的數字（YYYY/M/D → YYYYMMDD）
 function parseDateToNum(dateStr?: string): number {
@@ -25,13 +28,32 @@ const parsedBaseData: SakeItem[] = (sakeDataRaw as SakeItem[])
   })
   .sort((a, b) => parseDateToNum(b.firstDrinkDate) - parseDateToNum(a.firstDrinkDate));
 
+// 呼叫 Apps Script API（GET）
+async function gasGet(action: string): Promise<Record<string, unknown>> {
+  const res = await fetch(`${GAS_URL}?action=${action}`);
+  if (!res.ok) throw new Error(`GAS GET failed: ${res.status}`);
+  return res.json();
+}
+
+// 呼叫 Apps Script API（POST）
+async function gasPost(body: Record<string, unknown>): Promise<{ success: boolean; id?: string }> {
+  const res = await fetch(GAS_URL, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`GAS POST failed: ${res.status}`);
+  return res.json();
+}
+
 export function useSakeData() {
   const [customSake, setCustomSake] = useState<CustomSake[]>([]);
-  const [imageOverrides, setImageOverrides] = useState<Record<string, string>>({});
-  const [fieldOverrides, setFieldOverrides] = useState<Record<string, Partial<SakeItem>>>({});
+  // overrides: { [id]: { imageUrl?, name?, brewery?, ... } }
+  const [overrides, setOverrides] = useState<Record<string, Partial<SakeItem>>>({});
   const [isLoading, setIsLoading] = useState(true);
 
+  // 初始化：從 Apps Script 載入 overrides（同時用 localStorage 快取）
   useEffect(() => {
+    // 先從 localStorage 快取載入（讓頁面立即顯示）
     try {
       const stored = localStorage.getItem(CUSTOM_SAKE_KEY);
       if (stored) {
@@ -42,52 +64,69 @@ export function useSakeData() {
         });
         setCustomSake(withParsed);
       }
-      const overrides = localStorage.getItem(IMAGE_OVERRIDES_KEY);
-      if (overrides) setImageOverrides(JSON.parse(overrides));
-
-      const fields = localStorage.getItem(FIELD_OVERRIDES_KEY);
-      if (fields) setFieldOverrides(JSON.parse(fields));
-    } catch (error) {
-      console.error('Failed to load sake data:', error);
+      const cachedOverrides = localStorage.getItem(OVERRIDES_CACHE_KEY);
+      if (cachedOverrides) setOverrides(JSON.parse(cachedOverrides));
+    } catch (e) {
+      console.warn('Failed to load from localStorage:', e);
     }
-    setIsLoading(false);
+
+    // 再從 Apps Script 取得最新 overrides（非同步，不阻塞渲染）
+    gasGet('getOverrides')
+      .then((data) => {
+        const overridesData = data as Record<string, Partial<SakeItem>>;
+        setOverrides(overridesData);
+        localStorage.setItem(OVERRIDES_CACHE_KEY, JSON.stringify(overridesData));
+      })
+      .catch((e) => {
+        console.warn('Failed to load overrides from GAS, using cache:', e);
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
   }, []);
 
   // 合併：自訂酒款在前，套用所有覆寫
   const allSake = useMemo(() => {
     const applyOverrides = (item: SakeItem): SakeItem => {
-      let result = { ...item };
-      // 套用圖片覆寫
-      if (imageOverrides[item.id]) result.imageUrl = imageOverrides[item.id];
-      // 套用欄位覆寫
-      if (fieldOverrides[item.id]) {
-        const fo = fieldOverrides[item.id];
-        result = { ...result, ...fo };
-        // 若 rice 有更新，重新解析
-        if (fo.rice !== undefined) {
-          const { rice, seimai } = parseRiceField(fo.rice);
-          result.riceParsed = rice;
-          result.seimai = seimai;
-        }
+      const override = overrides[item.id];
+      if (!override) return item;
+      const result = { ...item, ...override };
+      // 若 rice 有更新，重新解析
+      if (override.rice !== undefined) {
+        const { rice, seimai } = parseRiceField(override.rice as string);
+        result.riceParsed = rice;
+        result.seimai = seimai;
       }
       return result;
     };
     return [...customSake.map(applyOverrides), ...parsedBaseData.map(applyOverrides)];
-  }, [customSake, imageOverrides, fieldOverrides]);
+  }, [customSake, overrides]);
 
-  const addCustomSake = (sake: Omit<CustomSake, 'isCustom' | 'createdAt'>) => {
+  /** 新增自訂酒款（同時寫入 Apps Script） */
+  const addCustomSake = async (sake: Omit<CustomSake, 'isCustom' | 'createdAt'>) => {
     const { rice, seimai } = parseRiceField(sake.rice);
+    const tempId = `custom_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const newSake: CustomSake = {
       ...sake,
       riceParsed: rice,
       seimai,
       isCustom: true,
       createdAt: Date.now(),
-      id: `custom_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: tempId,
     };
+
+    // 立即更新本地狀態
     const updated = [...customSake, newSake];
     setCustomSake(updated);
     localStorage.setItem(CUSTOM_SAKE_KEY, JSON.stringify(updated));
+
+    // 非同步寫入 Apps Script
+    try {
+      await gasPost({ action: 'addSake', sake: newSake });
+    } catch (e) {
+      console.warn('Failed to sync new sake to GAS:', e);
+    }
+
     return newSake;
   };
 
@@ -97,33 +136,39 @@ export function useSakeData() {
     localStorage.setItem(CUSTOM_SAKE_KEY, JSON.stringify(updated));
   };
 
-  /** 更新任何酒款的照片 URL */
-  const updateSakeImage = (id: string, imageUrl: string) => {
+  /** 更新任何酒款的照片 URL（永久存入 Apps Script） */
+  const updateSakeImage = async (id: string, imageUrl: string) => {
+    // 立即更新本地狀態
     const isCustom = customSake.some((s) => s.id === id);
     if (isCustom) {
       const updated = customSake.map((s) => s.id === id ? { ...s, imageUrl } : s);
       setCustomSake(updated);
       localStorage.setItem(CUSTOM_SAKE_KEY, JSON.stringify(updated));
     } else {
-      const updated = { ...imageOverrides, [id]: imageUrl };
-      setImageOverrides(updated);
-      localStorage.setItem(IMAGE_OVERRIDES_KEY, JSON.stringify(updated));
+      const newOverrides = { ...overrides, [id]: { ...(overrides[id] || {}), imageUrl } };
+      setOverrides(newOverrides);
+      localStorage.setItem(OVERRIDES_CACHE_KEY, JSON.stringify(newOverrides));
+    }
+
+    // 非同步寫入 Apps Script（永久儲存）
+    try {
+      await gasPost({ action: 'updateImage', id, imageUrl });
+    } catch (e) {
+      console.warn('Failed to sync image to GAS:', e);
     }
   };
 
   /**
-   * 更新任何酒款的任意欄位（包含原始 195 款）
-   * 自訂酒款直接更新；原始酒款存入 fieldOverrides
+   * 更新任何酒款的任意欄位（永久存入 Apps Script）
    */
-  const updateSake = (id: string, updates: Partial<SakeItem>) => {
+  const updateSake = async (id: string, updates: Partial<SakeItem>) => {
     const isCustom = customSake.some((s) => s.id === id);
     if (isCustom) {
       const updated = customSake.map((s) => {
         if (s.id !== id) return s;
         const merged = { ...s, ...updates };
-        // 若 rice 有更新，重新解析
         if (updates.rice !== undefined) {
-          const { rice, seimai } = parseRiceField(updates.rice);
+          const { rice, seimai } = parseRiceField(updates.rice as string);
           merged.riceParsed = rice;
           merged.seimai = seimai;
         }
@@ -132,17 +177,18 @@ export function useSakeData() {
       setCustomSake(updated);
       localStorage.setItem(CUSTOM_SAKE_KEY, JSON.stringify(updated));
     } else {
-      const current = fieldOverrides[id] || {};
+      const current = overrides[id] || {};
       const merged = { ...current, ...updates };
-      const updated = { ...fieldOverrides, [id]: merged };
-      setFieldOverrides(updated);
-      localStorage.setItem(FIELD_OVERRIDES_KEY, JSON.stringify(updated));
-      // 同步更新 imageOverrides（若有圖片變更）
-      if (updates.imageUrl !== undefined) {
-        const imgUpdated = { ...imageOverrides, [id]: updates.imageUrl };
-        setImageOverrides(imgUpdated);
-        localStorage.setItem(IMAGE_OVERRIDES_KEY, JSON.stringify(imgUpdated));
-      }
+      const newOverrides = { ...overrides, [id]: merged };
+      setOverrides(newOverrides);
+      localStorage.setItem(OVERRIDES_CACHE_KEY, JSON.stringify(newOverrides));
+    }
+
+    // 非同步寫入 Apps Script（永久儲存）
+    try {
+      await gasPost({ action: 'updateSake', id, updates });
+    } catch (e) {
+      console.warn('Failed to sync updates to GAS:', e);
     }
   };
 
