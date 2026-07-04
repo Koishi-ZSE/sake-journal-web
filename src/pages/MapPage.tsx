@@ -6,7 +6,7 @@ interface MapPageProps {
   onSakeClick: (sakeId: string) => void;
 }
 
-// 由北到南的縣市順序（用於按鈕排列）
+// 由北到南的縣市順序（不帶後綴，與 sake-data.json 一致）
 const PREFECTURE_ORDER = [
   '北海道',
   '青森', '岩手', '秋田',
@@ -22,6 +22,8 @@ const PREFECTURE_ORDER = [
   '愛媛', '高知',
   '福岡', '佐賀', '長崎',
   '熊本', '大分',
+  '宮崎', '鹿児島', '沖縄',
+  '東京', '大阪', '神奈川', '兵庫',
 ];
 
 // 日本地圖底圖 URL（Cloudinary，深色背景 + 淺灰色陸地）
