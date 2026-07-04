@@ -147,6 +147,7 @@ const bodyTypeColors: Record<string, string> = {
 
 export function SakeDetailPage({ sake, onBack, onUpdateImage, onEdit }: SakeDetailPageProps) {
   const [showPhotoEditor, setShowPhotoEditor] = useState(false);
+  const [showLightbox, setShowLightbox] = useState(false);
   const [currentImageUrl, setCurrentImageUrl] = useState(sake.imageUrl || '');
   const displayRice = sake.riceParsed || sake.rice;
 
@@ -186,7 +187,13 @@ export function SakeDetailPage({ sake, onBack, onUpdateImage, onEdit }: SakeDeta
         {/* 圖片區域 */}
         <div className="relative">
           {currentImageUrl ? (
-            <img src={currentImageUrl} alt={sake.name} className="w-full h-80 object-cover" />
+            <img
+              src={currentImageUrl}
+              alt={sake.name}
+              className="w-full h-80 object-cover cursor-zoom-in"
+              onClick={() => setShowLightbox(true)}
+              title="點擊查看完整照片"
+            />
           ) : (
             <div className="w-full h-40 bg-gray-800 flex items-center justify-center">
               <p className="text-gray-600 text-sm">尚無照片</p>
@@ -326,5 +333,29 @@ export function SakeDetailPage({ sake, onBack, onUpdateImage, onEdit }: SakeDeta
         </div>
       </div>
     </div>
+
+    {/* Lightbox 全螢幕照片檢視 */}
+    {showLightbox && currentImageUrl && (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/95"
+        onClick={() => setShowLightbox(false)}
+      >
+        {/* 關閉按鈕 */}
+        <button
+          onClick={() => setShowLightbox(false)}
+          className="absolute top-4 right-4 z-10 flex items-center justify-center w-10 h-10 bg-gray-800/80 hover:bg-gray-700 text-white rounded-full border border-gray-600 transition-colors"
+        >
+          <X size={20} />
+        </button>
+        {/* 完整照片（點擊背景關閉，點擊圖片不關閉） */}
+        <img
+          src={currentImageUrl}
+          alt={sake.name}
+          className="max-w-full max-h-full object-contain select-none"
+          style={{ maxWidth: '100vw', maxHeight: '100vh' }}
+          onClick={(e) => e.stopPropagation()}
+        />
+      </div>
+    )}
   );
 }
