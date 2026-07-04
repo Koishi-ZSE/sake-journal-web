@@ -162,6 +162,7 @@ export function SakeDetailPage({ sake, onBack, onUpdateImage, onEdit }: SakeDeta
     : '';
 
   return (
+    <>
     <div className="max-w-4xl mx-auto px-4 py-6">
       {/* 頂部列：返回 + 編輯按鈕 */}
       <div className="flex items-center justify-between mb-6">
@@ -334,7 +335,7 @@ export function SakeDetailPage({ sake, onBack, onUpdateImage, onEdit }: SakeDeta
       </div>
     </div>
 
-    {/* Lightbox 全螢幕照片檢視 */}
+    {/* Lightbox 全螢幕照片檢視 - 在同一個 return 內 */}
     {showLightbox && currentImageUrl && (
       <div
         className="fixed inset-0 z-50 flex items-center justify-center bg-black/95"
@@ -357,5 +358,6 @@ export function SakeDetailPage({ sake, onBack, onUpdateImage, onEdit }: SakeDeta
         />
       </div>
     )}
+    </>
   );
 }
