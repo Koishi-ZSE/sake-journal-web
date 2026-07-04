@@ -35,7 +35,7 @@ export function HomePage({ allSake, onSakeClick }: HomePageProps) {
 
   const hasActiveFilters = searchQuery || selectedType || selectedRice || selectedFlavor || selectedPrefecture;
   const avgRating = allSake.length
-    ? (allSake.reduce((sum, s) => sum + (s.rating || 0), 0) / allSake.length).toFixed(1)
+    ? (allSake.reduce((sum, s) => sum + (Number(s.rating) || 0), 0) / allSake.length).toFixed(1)
     : '0.0';
 
   return (

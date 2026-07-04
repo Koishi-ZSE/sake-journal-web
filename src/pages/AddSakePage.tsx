@@ -3,7 +3,7 @@ import { SakeItem } from '../types';
 import { ImageUploader } from '../components/ImageUploader';
 
 interface AddSakePageProps {
-  onAdd: (sake: Omit<SakeItem, 'id'>) => void;
+  onAdd: (sake: Omit<SakeItem, 'id'>) => Promise<void>;
 }
 
 export function AddSakePage({ onAdd }: AddSakePageProps) {
@@ -28,11 +28,11 @@ export function AddSakePage({ onAdd }: AddSakePageProps) {
     setFormData((prev) => ({ ...prev, imageUrl: url }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name.trim()) { alert('請輸入酒名'); return; }
     if (!formData.prefecture.trim()) { alert('請選擇縣市'); return; }
-    onAdd({
+    await onAdd({
       name: formData.name,
       brewery: formData.brewery || undefined,
       prefecture: formData.prefecture,

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Home, BarChart3, Map, Settings, Plus } from 'lucide-react';
+import { Home, BarChart3, Map, Settings, PenLine } from 'lucide-react';
 import { useSakeData } from './hooks/useSakeData';
 import { HomePage } from './pages/HomePage';
 import { RankingPage } from './pages/RankingPage';
@@ -8,10 +8,11 @@ import { SettingsPage } from './pages/SettingsPage';
 import { AddSakePage } from './pages/AddSakePage';
 import { SakeDetailPage } from './pages/SakeDetailPage';
 import { EditSakePage } from './pages/EditSakePage';
+import { EditListPage } from './pages/EditListPage';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { PasswordModal } from './components/PasswordModal';
 
-type PageType = 'home' | 'ranking' | 'map' | 'settings' | 'add' | 'detail' | 'edit';
+type PageType = 'home' | 'ranking' | 'map' | 'editlist' | 'settings' | 'add' | 'detail' | 'edit';
 
 function AppInner() {
   const [currentPage, setCurrentPage] = useState<PageType>('home');
@@ -26,13 +27,23 @@ function AppInner() {
     setCurrentPage('detail');
   };
 
-  const handleAddSake = (sakeData: any) => {
-    addCustomSake(sakeData);
-    setCurrentPage('home');
+  const handleAddSake = async (sakeData: any) => {
+    const newSake = await addCustomSake(sakeData);
+    // 新增後跳轉到該酒款的詳細頁
+    if (newSake?.id) {
+      setPrevPage('home');
+      setSelectedSakeId(newSake.id);
+      setCurrentPage('detail');
+    } else {
+      setCurrentPage('home');
+    }
   };
 
-  const handleEditSake = (id: string, updates: any) => {
-    updateSake(id, updates);
+  const handleEditSake = async (id: string, updates: any) => {
+    await updateSake(id, updates);
+    // 儲存後跳轉到該酒款的詳細頁
+    setSelectedSakeId(id);
+    setCurrentPage('detail');
   };
 
   const handleBack = () => {
@@ -45,8 +56,8 @@ function AppInner() {
   };
 
   const handleNavClick = (page: PageType) => {
-    if (page === 'add') {
-      requestEdit(() => setCurrentPage('add'));
+    if (page === 'editlist') {
+      requestEdit(() => setCurrentPage('editlist'));
     } else {
       setCurrentPage(page);
     }
@@ -65,6 +76,15 @@ function AppInner() {
 
   const selectedSake = selectedSakeId ? allSake.find((s) => s.id === selectedSakeId) : null;
 
+  // 底部導航 tabs（編輯模式下才顯示「編輯」tab）
+  const navTabs = [
+    { id: 'home', icon: Home, label: '首頁' },
+    { id: 'ranking', icon: BarChart3, label: '排行榜' },
+    { id: 'map', icon: Map, label: '地圖' },
+    { id: 'editlist', icon: PenLine, label: '編輯' },
+    { id: 'settings', icon: Settings, label: '設定' },
+  ] as const;
+
   return (
     <div className="flex flex-col h-screen bg-black">
       {/* 密碼輸入 Modal */}
@@ -76,6 +96,17 @@ function AppInner() {
         {currentPage === 'ranking' && <RankingPage allSake={allSake} onSakeClick={handleSakeClick} />}
         {currentPage === 'map' && <MapPage allSake={allSake} onSakeClick={handleSakeClick} />}
         {currentPage === 'settings' && <SettingsPage />}
+        {currentPage === 'editlist' && (
+          <EditListPage
+            allSake={allSake}
+            onSelectSake={(id) => {
+              setPrevPage('editlist');
+              setSelectedSakeId(id);
+              setCurrentPage('edit');
+            }}
+            onAdd={() => setCurrentPage('add')}
+          />
+        )}
         {currentPage === 'add' && <AddSakePage onAdd={handleAddSake} />}
         {currentPage === 'detail' && selectedSake && (
           <SakeDetailPage
@@ -89,7 +120,7 @@ function AppInner() {
           <EditSakePage
             sake={selectedSake}
             onSave={handleEditSake}
-            onBack={() => setCurrentPage('detail')}
+            onBack={() => setCurrentPage(prevPage === 'editlist' ? 'editlist' : 'detail')}
           />
         )}
       </div>
@@ -97,13 +128,7 @@ function AppInner() {
       {/* 底部導航欄 */}
       <nav className="bg-gray-950 border-t border-gray-800 sticky bottom-0">
         <div className="flex justify-around max-w-4xl mx-auto">
-          {[
-            { id: 'home', icon: Home, label: '首頁' },
-            { id: 'ranking', icon: BarChart3, label: '排行榜' },
-            { id: 'map', icon: Map, label: '地圖' },
-            { id: 'add', icon: Plus, label: '新增' },
-            { id: 'settings', icon: Settings, label: '設定' },
-          ].map(({ id, icon: Icon, label }) => (
+          {navTabs.map(({ id, icon: Icon, label }) => (
             <button
               key={id}
               onClick={() => handleNavClick(id as PageType)}

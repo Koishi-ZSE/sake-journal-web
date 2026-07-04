@@ -77,7 +77,7 @@ function RankingCard({
             </h3>
             <div className="flex items-center gap-0.5 flex-shrink-0">
               <Star size={13} className="fill-amber-400 text-amber-400" />
-              <span className="text-base font-bold text-amber-400">{sake.rating?.toFixed(1)}</span>
+              <span className="text-base font-bold text-amber-400">{sake.rating != null ? Number(sake.rating).toFixed(1) : ''}</span>
             </div>
           </div>
           {sake.brewery && (
