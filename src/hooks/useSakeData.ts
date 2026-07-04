@@ -70,7 +70,10 @@ export function useSakeData() {
       console.warn('Failed to load from localStorage:', e);
     }
 
-    // 再從 Apps Script 取得最新 overrides（非同步，不阻塞渲染）
+    // localStorage 讀取完成後立即解除載入狀態，讓頁面馬上顯示
+    setIsLoading(false);
+
+    // 再從 Apps Script 取得最新 overrides（純背景更新，不影響載入狀態）
     gasGet('getOverrides')
       .then((data) => {
         const overridesData = data as Record<string, Partial<SakeItem>>;
@@ -79,9 +82,6 @@ export function useSakeData() {
       })
       .catch((e) => {
         console.warn('Failed to load overrides from GAS, using cache:', e);
-      })
-      .finally(() => {
-        setIsLoading(false);
       });
   }, []);
 
