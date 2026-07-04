@@ -8,6 +8,46 @@ interface ImageUploaderProps {
   label?: string;
 }
 
+/** 上傳前壓縮圖片：最長邊限制 1200px，JPEG 品質 0.82，約 200–400 KB */
+function compressImage(file: File): Promise<File> {
+  return new Promise((resolve) => {
+    const MAX_SIDE = 1200;
+    const QUALITY = 0.82;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > MAX_SIDE || height > MAX_SIDE) {
+          if (width >= height) {
+            height = Math.round((height * MAX_SIDE) / width);
+            width = MAX_SIDE;
+          } else {
+            width = Math.round((width * MAX_SIDE) / height);
+            height = MAX_SIDE;
+          }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d')!;
+        ctx.drawImage(img, 0, 0, width, height);
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) { resolve(file); return; }
+            const compressed = new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' });
+            resolve(compressed);
+          },
+          'image/jpeg',
+          QUALITY,
+        );
+      };
+      img.src = e.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 export function ImageUploader({ currentImageUrl, onUploadComplete }: ImageUploaderProps) {
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -33,18 +73,26 @@ export function ImageUploader({ currentImageUrl, onUploadComplete }: ImageUpload
     setError(null);
     setSuccess(false);
     setProgress(0);
+    setUploading(true);
 
-    // 建立本地預覽
+    // 壓縮圖片（最長邊 1200px，JPEG 0.82）
+    let fileToUpload = file;
+    try {
+      fileToUpload = await compressImage(file);
+    } catch {
+      // 壓縮失敗則使用原始檔案
+    }
+
+    // 建立本地預覽（用壓縮後的檔案）
     const reader = new FileReader();
     reader.onload = (ev) => {
       setPreview(ev.target?.result as string);
     };
-    reader.readAsDataURL(file);
+    reader.readAsDataURL(fileToUpload);
 
     // 上傳到 Cloudinary
-    setUploading(true);
     try {
-      const result = await uploadImage(file, (p) => setProgress(p));
+      const result = await uploadImage(fileToUpload, (p) => setProgress(p));
       onUploadComplete(result.url);
       setSuccess(true);
     } catch (err) {
