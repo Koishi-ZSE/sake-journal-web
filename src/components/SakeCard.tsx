@@ -52,7 +52,7 @@ export function SakeCard({ sake, onClick }: SakeCardProps) {
             {sake.rating && (
               <div className="flex items-center gap-0.5 flex-shrink-0">
                 <Star size={12} className="fill-amber-400 text-amber-400" />
-                <span className="text-xs font-bold text-amber-400">{sake.rating.toFixed(1)}</span>
+                <span className="text-xs font-bold text-amber-400">{Number(sake.rating).toFixed(1)}</span>
               </div>
             )}
           </div>

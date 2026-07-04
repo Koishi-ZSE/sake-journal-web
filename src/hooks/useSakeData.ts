@@ -87,6 +87,11 @@ export function useSakeData() {
 
   // 合併：自訂酒款在前，套用所有覆寫
   const allSake = useMemo(() => {
+    const toNum = (v: unknown): number | undefined => {
+      if (v === undefined || v === null || v === '') return undefined;
+      const n = Number(v);
+      return isNaN(n) ? undefined : n;
+    };
     const applyOverrides = (item: SakeItem): SakeItem => {
       const override = overrides[item.id];
       if (!override) return item;
@@ -96,6 +101,13 @@ export function useSakeData() {
         const { rice, seimai } = parseRiceField(override.rice as string);
         result.riceParsed = rice;
         result.seimai = seimai;
+      }
+      // 強制將數字欄位轉為 number（GAS 可能回傳字串）
+      const numFields = ['aroma', 'smoothness', 'tasteScore', 'complexity', 'sweetness', 'rating'] as const;
+      for (const field of numFields) {
+        if (override[field] !== undefined) {
+          result[field] = toNum(override[field]);
+        }
       }
       return result;
     };

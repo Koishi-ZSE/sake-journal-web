@@ -127,7 +127,7 @@ function RadarChart({ sake }: { sake: SakeItem }) {
                 fontSize="11"
                 fontWeight="bold"
               >
-                {val != null ? val.toFixed(1) : '—'}
+                {val != null ? Number(val).toFixed(1) : '—'}
               </text>
             </g>
           );
@@ -226,7 +226,7 @@ export function SakeDetailPage({ sake, onBack, onUpdateImage, onEdit }: SakeDeta
               {sake.rating && (
                 <div className="flex items-center gap-2 bg-amber-900/40 border border-amber-700/50 px-4 py-2 rounded-xl flex-shrink-0">
                   <Star className="fill-amber-400 text-amber-400" size={20} />
-                  <span className="text-xl font-bold text-amber-400">{sake.rating.toFixed(1)}</span>
+                  <span className="text-xl font-bold text-amber-400">{Number(sake.rating).toFixed(1)}</span>
                 </div>
               )}
             </div>
