@@ -33,7 +33,6 @@ export function MapPage({ allSake, onSakeClick }: MapPageProps) {
   // 取得資料中實際存在的縣市
   const availablePrefectures = useMemo(() => {
     const set = new Set(allSake.map((s) => s.prefecture).filter(Boolean));
-    // 先按照預設順序排，再加入不在清單中的縣市
     const ordered = PREFECTURE_ORDER.filter((p) => set.has(p));
     set.forEach((p) => { if (p && !PREFECTURE_ORDER.includes(p)) ordered.push(p); });
     return ordered;
@@ -59,7 +58,8 @@ export function MapPage({ allSake, onSakeClick }: MapPageProps) {
   };
 
   return (
-    <div className="flex flex-col h-full bg-gray-950 text-white">
+    // 使用正常文件流，讓外層容器的 overflow-y-auto 負責滾動
+    <div className="min-h-full bg-gray-950 text-white pb-6">
       {/* 標題 */}
       <div className="px-4 pt-4 pb-2">
         <h1 className="text-xl font-bold text-amber-400">產地地圖</h1>
@@ -79,7 +79,7 @@ export function MapPage({ allSake, onSakeClick }: MapPageProps) {
       </div>
 
       {/* 縣市按鈕列（由北到南，由左至右） */}
-      <div className="px-4 mb-3">
+      <div className="px-4 mb-4">
         <div className="flex flex-wrap gap-2">
           {availablePrefectures.map((pref) => {
             const count = countByPrefecture[pref] || 0;
@@ -101,9 +101,9 @@ export function MapPage({ allSake, onSakeClick }: MapPageProps) {
         </div>
       </div>
 
-      {/* 選中縣市的酒款列表（SakeCard 完整卡片） */}
+      {/* 選中縣市的酒款列表（SakeCard 完整卡片，隨頁面自然延伸） */}
       {selectedPrefecture && (
-        <div className="flex-1 overflow-y-auto px-4 pb-4">
+        <div className="px-4">
           <h2 className="text-sm font-semibold text-amber-400 mb-3">
             {selectedPrefecture} · {selectedSakes.length} 款
           </h2>
@@ -118,7 +118,7 @@ export function MapPage({ allSake, onSakeClick }: MapPageProps) {
       )}
 
       {!selectedPrefecture && (
-        <div className="flex-1 flex items-center justify-center text-gray-500 text-sm pb-8">
+        <div className="flex items-center justify-center text-gray-500 text-sm py-8">
           點擊上方按鈕查看各產地酒款
         </div>
       )}
