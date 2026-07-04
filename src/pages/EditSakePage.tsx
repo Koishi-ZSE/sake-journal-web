@@ -5,6 +5,7 @@ import { ImageUploader } from '../components/ImageUploader';
 
 interface EditSakePageProps {
   sake: SakeItem;
+  allSake: SakeItem[];
   onSave: (id: string, updates: Partial<SakeItem>) => void;
   onBack: () => void;
 }
@@ -87,7 +88,8 @@ function MiniRadar({ scores }: { scores: Record<string, number | undefined> }) {
   );
 }
 
-export function EditSakePage({ sake, onSave, onBack }: EditSakePageProps) {
+export function EditSakePage({ sake, allSake, onSave, onBack }: EditSakePageProps) {
+  const typeOptions = [...new Set(allSake.map((s) => s.type).filter(Boolean))].sort() as string[];
   const [formData, setFormData] = useState({
     name: sake.name || '',
     brewery: sake.brewery || '',
@@ -226,7 +228,15 @@ export function EditSakePage({ sake, onSave, onBack }: EditSakePageProps) {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className={labelClass}>酒體</label>
-              <input type="text" name="type" value={formData.type} onChange={handleChange} placeholder="例：純米大吟釀" className={inputClass} />
+              <select name="type" value={formData.type} onChange={handleChange} className={inputClass}>
+                <option value="">選擇酒體</option>
+                {typeOptions.map((t) => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+                {formData.type && !typeOptions.includes(formData.type) && (
+                  <option value={formData.type}>{formData.type}</option>
+                )}
+              </select>
             </div>
             <div>
               <label className={labelClass}>酒體分類</label>

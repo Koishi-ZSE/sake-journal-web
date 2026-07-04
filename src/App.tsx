@@ -121,6 +121,7 @@ function AppInner() {
         {currentPage === 'edit' && selectedSake && (
           <EditSakePage
             sake={selectedSake}
+            allSake={allSake}
             onSave={handleEditSake}
             onBack={() => setCurrentPage(prevPage === 'editlist' ? 'editlist' : 'detail')}
           />
