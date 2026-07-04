@@ -22,9 +22,11 @@ const PREFECTURE_ORDER = [
 interface FilterParams {
   searchQuery: string;
   sakeType?: string;
+  bodyStyle?: string;
+  prefecture?: string;
+  // 保留向下相容
   riceType?: string;
   flavorProfile?: string;
-  prefecture?: string;
 }
 
 export function useSakeFilter(allSake: SakeItem[], filters: FilterParams): SakeItem[] {
@@ -45,18 +47,15 @@ export function useSakeFilter(allSake: SakeItem[], filters: FilterParams): SakeI
       // 酒體類型
       if (filters.sakeType && sake.type !== filters.sakeType) return false;
 
-      // 米種
-      if (filters.riceType && sake.rice !== filters.riceType) return false;
-
-      // 風味
-      if (filters.flavorProfile && sake.flavor !== filters.flavorProfile) return false;
+      // 風格（bodyType）
+      if (filters.bodyStyle && sake.bodyType !== filters.bodyStyle) return false;
 
       // 縣市
       if (filters.prefecture && sake.prefecture !== filters.prefecture) return false;
 
       return true;
     });
-  }, [allSake, filters.searchQuery, filters.sakeType, filters.riceType, filters.flavorProfile, filters.prefecture]);
+  }, [allSake, filters.searchQuery, filters.sakeType, filters.bodyStyle, filters.riceType, filters.flavorProfile, filters.prefecture]);
 }
 
 export function getFilterOptions(allSake: SakeItem[]) {

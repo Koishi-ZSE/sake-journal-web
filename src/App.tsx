@@ -108,7 +108,13 @@ function AppInner() {
             onAdd={() => setCurrentPage('add')}
           />
         )}
-        {currentPage === 'add' && <AddSakePage onAdd={handleAddSake} />}
+        {currentPage === 'add' && (
+          <AddSakePage
+            onAdd={handleAddSake}
+            allSake={allSake}
+            onCancel={() => setCurrentPage('home')}
+          />
+        )}
         {currentPage === 'detail' && selectedSake && (
           <SakeDetailPage
             sake={selectedSake}

@@ -4,14 +4,32 @@ import { ImageUploader } from '../components/ImageUploader';
 
 interface AddSakePageProps {
   onAdd: (sake: Omit<SakeItem, 'id'>) => Promise<void>;
+  allSake: SakeItem[];
+  onCancel: () => void;
 }
 
-export function AddSakePage({ onAdd }: AddSakePageProps) {
+const BODY_STYLE_OPTIONS = ['薰', '爽', '醇', '熟'];
+
+const prefectures = [
+  '北海道', '青森県', '岩手県', '宮城県', '秋田県', '山形県', '福島県',
+  '茨城県', '栃木県', '群馬県', '埼玉県', '千葉県', '東京都', '神奈川県',
+  '新潟県', '富山県', '石川県', '福井県', '山梨県', '長野県', '岐阜県',
+  '静岡県', '愛知県', '三重県', '滋賀県', '京都府', '大阪府', '兵庫県',
+  '奈良県', '和歌山県', '鳥取県', '島根県', '岡山県', '広島県', '山口県',
+  '徳島県', '香川県', '愛媛県', '高知県', '福岡県', '佐賀県', '長崎県',
+  '熊本県', '大分県', '宮崎県', '鹿児島県', '沖縄県',
+];
+
+export function AddSakePage({ onAdd, allSake, onCancel }: AddSakePageProps) {
+  // 動態酒體選項（與首頁篩選一致）
+  const typeOptions = [...new Set(allSake.map((s) => s.type).filter(Boolean))].sort() as string[];
+
   const [formData, setFormData] = useState({
     name: '',
     brewery: '',
     prefecture: '',
     type: '',
+    bodyType: '',
     rice: '',
     flavor: '',
     rating: '',
@@ -37,6 +55,7 @@ export function AddSakePage({ onAdd }: AddSakePageProps) {
       brewery: formData.brewery || undefined,
       prefecture: formData.prefecture,
       type: formData.type || undefined,
+      bodyType: formData.bodyType || undefined,
       rice: formData.rice || undefined,
       flavor: formData.flavor || undefined,
       rating: formData.rating ? parseFloat(formData.rating) : undefined,
@@ -44,16 +63,6 @@ export function AddSakePage({ onAdd }: AddSakePageProps) {
       imageUrl: formData.imageUrl || undefined,
     });
   };
-
-  const prefectures = [
-    '北海道', '青森県', '岩手県', '宮城県', '秋田県', '山形県', '福島県',
-    '茨城県', '栃木県', '群馬県', '埼玉県', '千葉県', '東京都', '神奈川県',
-    '新潟県', '富山県', '石川県', '福井県', '山梨県', '長野県', '岐阜県',
-    '静岡県', '愛知県', '三重県', '滋賀県', '京都府', '大阪府', '兵庫県',
-    '奈良県', '和歌山県', '鳥取県', '島根県', '岡山県', '広島県', '山口県',
-    '徳島県', '香川県', '愛媛県', '高知県', '福岡県', '佐賀県', '長崎県',
-    '熊本県', '大分県', '宮崎県', '鹿児島県', '沖縄県',
-  ];
 
   const inputClass = "w-full px-3 py-2.5 bg-gray-800 border border-gray-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent placeholder-gray-500";
   const labelClass = "block text-sm font-semibold text-gray-300 mb-1.5";
@@ -74,7 +83,6 @@ export function AddSakePage({ onAdd }: AddSakePageProps) {
             onUploadComplete={handleImageUpload}
             label="拍照或從相簿選擇照片"
           />
-          {/* 也保留 URL 輸入選項 */}
           <div className="mt-2">
             <p className="text-xs text-gray-500 mb-1">或輸入圖片網址</p>
             <input
@@ -108,26 +116,43 @@ export function AddSakePage({ onAdd }: AddSakePageProps) {
           </select>
         </div>
 
+        {/* 酒體 + 風格 */}
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className={labelClass}>酒體</label>
-            <input type="text" name="type" value={formData.type} onChange={handleChange} placeholder="例：純米大吟釀" className={inputClass} />
+            <select name="type" value={formData.type} onChange={handleChange} className={inputClass}>
+              <option value="">選擇酒體</option>
+              {typeOptions.map((t) => (
+                <option key={t} value={t}>{t}</option>
+              ))}
+            </select>
           </div>
           <div>
-            <label className={labelClass}>風味</label>
-            <input type="text" name="flavor" value={formData.flavor} onChange={handleChange} placeholder="例：清爽、果香" className={inputClass} />
+            <label className={labelClass}>風格</label>
+            <select name="bodyType" value={formData.bodyType} onChange={handleChange} className={inputClass}>
+              <option value="">選擇風格</option>
+              {BODY_STYLE_OPTIONS.map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
           </div>
         </div>
 
+        {/* 米種 + 質感 */}
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className={labelClass}>米種</label>
             <input type="text" name="rice" value={formData.rice} onChange={handleChange} placeholder="例：山田錦" className={inputClass} />
           </div>
           <div>
-            <label className={labelClass}>評分 (0–5)</label>
-            <input type="number" name="rating" value={formData.rating} onChange={handleChange} placeholder="例：4.5" min="0" max="5" step="0.1" className={inputClass} />
+            <label className={labelClass}>質感</label>
+            <input type="text" name="flavor" value={formData.flavor} onChange={handleChange} placeholder="例：清爽、果香" className={inputClass} />
           </div>
+        </div>
+
+        <div>
+          <label className={labelClass}>評分 (0–5)</label>
+          <input type="number" name="rating" value={formData.rating} onChange={handleChange} placeholder="例：4.5" min="0" max="5" step="0.1" className={inputClass} />
         </div>
 
         <div>
@@ -140,6 +165,14 @@ export function AddSakePage({ onAdd }: AddSakePageProps) {
           className="w-full bg-amber-600 hover:bg-amber-500 text-white font-semibold py-3 px-4 rounded-lg transition-colors mt-2"
         >
           新增酒款
+        </button>
+
+        <button
+          type="button"
+          onClick={onCancel}
+          className="w-full bg-gray-800 hover:bg-gray-700 text-gray-300 font-semibold py-3 px-4 rounded-lg transition-colors border border-gray-600"
+        >
+          取消新增
         </button>
       </form>
     </div>

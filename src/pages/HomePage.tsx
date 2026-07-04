@@ -9,34 +9,35 @@ interface HomePageProps {
   onSakeClick: (id: string) => void;
 }
 
+const BODY_STYLE_OPTIONS = ['薰', '爽', '醇', '熟'];
+
 export function HomePage({ allSake, onSakeClick }: HomePageProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedType, setSelectedType] = useState('');
-  const [selectedRice, setSelectedRice] = useState('');
-  const [selectedFlavor, setSelectedFlavor] = useState('');
+  const [selectedBodyStyle, setSelectedBodyStyle] = useState('');
   const [selectedPrefecture, setSelectedPrefecture] = useState('');
 
   const filterOptions = getFilterOptions(allSake);
   const filteredSake = useSakeFilter(allSake, {
     searchQuery,
     sakeType: selectedType,
-    riceType: selectedRice,
-    flavorProfile: selectedFlavor,
+    bodyStyle: selectedBodyStyle,
     prefecture: selectedPrefecture,
   });
 
   const clearFilters = () => {
     setSearchQuery('');
     setSelectedType('');
-    setSelectedRice('');
-    setSelectedFlavor('');
+    setSelectedBodyStyle('');
     setSelectedPrefecture('');
   };
 
-  const hasActiveFilters = searchQuery || selectedType || selectedRice || selectedFlavor || selectedPrefecture;
+  const hasActiveFilters = searchQuery || selectedType || selectedBodyStyle || selectedPrefecture;
   const avgRating = allSake.length
     ? (allSake.reduce((sum, s) => sum + (Number(s.rating) || 0), 0) / allSake.length).toFixed(1)
     : '0.0';
+
+  const selectClass = "w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-gray-200 text-sm focus:outline-none focus:border-amber-500";
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-6">
@@ -70,7 +71,7 @@ export function HomePage({ allSake, onSakeClick }: HomePageProps) {
         </div>
       </div>
 
-      {/* 篩選面板（常駐顯示） */}
+      {/* 篩選面板 */}
       <div className="mb-5 bg-gray-900 border border-gray-700 rounded-xl p-4">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-semibold text-gray-300">篩選條件</h2>
@@ -84,70 +85,42 @@ export function HomePage({ allSake, onSakeClick }: HomePageProps) {
             </button>
           )}
         </div>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          {/* 酒體 */}
+
+        {/* 上層：酒體 + 風格 */}
+        <div className="grid grid-cols-2 gap-3 mb-3">
           <div>
             <label className="block text-xs text-gray-500 mb-1">酒體</label>
-            <select
-              value={selectedType}
-              onChange={(e) => setSelectedType(e.target.value)}
-              className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-gray-200 text-sm focus:outline-none focus:border-amber-500"
-            >
+            <select value={selectedType} onChange={(e) => setSelectedType(e.target.value)} className={selectClass}>
               <option value="">全部</option>
               {filterOptions.types.map((type) => (
                 <option key={type} value={type}>{type}</option>
               ))}
             </select>
           </div>
-
-          {/* 米種 */}
           <div>
-            <label className="block text-xs text-gray-500 mb-1">米種</label>
-            <select
-              value={selectedRice}
-              onChange={(e) => setSelectedRice(e.target.value)}
-              className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-gray-200 text-sm focus:outline-none focus:border-amber-500"
-            >
+            <label className="block text-xs text-gray-500 mb-1">風格</label>
+            <select value={selectedBodyStyle} onChange={(e) => setSelectedBodyStyle(e.target.value)} className={selectClass}>
               <option value="">全部</option>
-              {filterOptions.rices.map((rice) => (
-                <option key={rice} value={rice}>{rice}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* 風味 */}
-          <div>
-            <label className="block text-xs text-gray-500 mb-1">風味</label>
-            <select
-              value={selectedFlavor}
-              onChange={(e) => setSelectedFlavor(e.target.value)}
-              className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-gray-200 text-sm focus:outline-none focus:border-amber-500"
-            >
-              <option value="">全部</option>
-              {filterOptions.flavors.map((flavor) => (
-                <option key={flavor} value={flavor}>{flavor}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* 縣市 */}
-          <div>
-            <label className="block text-xs text-gray-500 mb-1">縣市</label>
-            <select
-              value={selectedPrefecture}
-              onChange={(e) => setSelectedPrefecture(e.target.value)}
-              className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-gray-200 text-sm focus:outline-none focus:border-amber-500"
-            >
-              <option value="">全部</option>
-              {filterOptions.prefectures.map((p) => (
-                <option key={p} value={p}>{p}</option>
+              {BODY_STYLE_OPTIONS.map((s) => (
+                <option key={s} value={s}>{s}</option>
               ))}
             </select>
           </div>
         </div>
+
+        {/* 下層：縣市（全寬） */}
+        <div>
+          <label className="block text-xs text-gray-500 mb-1">縣市</label>
+          <select value={selectedPrefecture} onChange={(e) => setSelectedPrefecture(e.target.value)} className={selectClass}>
+            <option value="">全部</option>
+            {filterOptions.prefectures.map((p) => (
+              <option key={p} value={p}>{p}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
-      {/* 酒款清單（由新到舊，即 allSake 的原始順序：自訂在前，原始資料依 id 順序） */}
+      {/* 酒款清單 */}
       <div className="flex flex-col gap-3">
         {filteredSake.length > 0 ? (
           filteredSake.map((sake) => (
