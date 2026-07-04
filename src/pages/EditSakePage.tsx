@@ -30,7 +30,7 @@ const PREFECTURES = [
 ];
 
 function MiniRadar({ scores }: { scores: Record<string, number | undefined> }) {
-  const size = 160;
+  const size = 190;
   const cx = size / 2;
   const cy = size / 2;
   const r = 60;
@@ -52,7 +52,6 @@ function MiniRadar({ scores }: { scores: Record<string, number | undefined> }) {
   const toPath = (pts: { x: number; y: number }[]) =>
     pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ') + ' Z';
 
-  // 背景網格（3 層）
   const grids = [1, 2, 3, 4, 5].map((level) => {
     const pts = RADAR_FIELDS.map((_, i) => {
       const a = angleOf(i);
@@ -62,7 +61,7 @@ function MiniRadar({ scores }: { scores: Record<string, number | undefined> }) {
   });
 
   return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} overflow="visible">
       {/* 背景網格 */}
       {grids.map((d, i) => (
         <path key={i} d={d} fill="none" stroke="#374151" strokeWidth="0.8" />
@@ -76,10 +75,10 @@ function MiniRadar({ scores }: { scores: Record<string, number | undefined> }) {
       {/* 標籤 */}
       {RADAR_FIELDS.map((f, i) => {
         const a = angleOf(i);
-        const lx = cx + (r + 14) * Math.cos(a);
-        const ly = cy + (r + 14) * Math.sin(a);
+        const lx = cx + (r + 20) * Math.cos(a);
+        const ly = cy + (r + 20) * Math.sin(a);
         return (
-          <text key={f.name} x={lx} y={ly} textAnchor="middle" dominantBaseline="middle" fill="#9ca3af" fontSize="9">
+          <text key={f.name} x={lx} y={ly} textAnchor="middle" dominantBaseline="middle" fill="#9ca3af" fontSize="10">
             {f.label}
           </text>
         );
