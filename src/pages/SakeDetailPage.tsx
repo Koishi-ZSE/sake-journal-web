@@ -166,9 +166,9 @@ export function SakeDetailPage({ sake, onBack, onUpdateImage, onEdit }: SakeDeta
       <div className="flex items-center justify-between mb-6">
         <button
           onClick={onBack}
-          className="flex items-center gap-2 text-amber-400 hover:text-amber-300 transition-colors"
+          className="flex items-center gap-2 bg-gray-800 hover:bg-gray-700 active:bg-gray-600 text-gray-200 px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors border border-gray-700"
         >
-          <ArrowLeft size={20} />
+          <ArrowLeft size={18} />
           返回
         </button>
         {onEdit && (

@@ -175,8 +175,8 @@ export function EditSakePage({ sake, onSave, onBack }: EditSakePageProps) {
   return (
     <div className="max-w-2xl mx-auto px-4 py-6">
       <div className="flex items-center gap-3 mb-6">
-        <button onClick={onBack} className="flex items-center gap-1.5 text-gray-400 hover:text-gray-200 transition-colors">
-          <ArrowLeft size={20} />
+        <button onClick={onBack} className="flex items-center gap-1.5 bg-gray-800 hover:bg-gray-700 active:bg-gray-600 text-gray-200 px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors border border-gray-700">
+          <ArrowLeft size={18} />
         </button>
         <div className="flex-1 min-w-0">
           <h1 className="text-xl font-bold text-amber-400">編輯酒款資訊</h1>
