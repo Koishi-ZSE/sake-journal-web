@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { SakeItem } from '../types';
+import { SakeCard } from '../components/SakeCard';
 
 interface MapPageProps {
   allSake: SakeItem[];
@@ -12,22 +13,19 @@ const PREFECTURE_ORDER = [
   '青森', '岩手', '秋田',
   '宮城', '山形', '福島',
   '茨城', '栃木', '群馬',
-  '埼玉', '千葉',
+  '埼玉', '千葉', '東京', '神奈川',
   '新潟', '富山', '石川',
-  '福井', '山梨', '長野',
-  '愛知', '三重',
-  '滋賀', '京都', '奈良',
-  '和歌山',
-  '山口', '廣島',
-  '愛媛', '高知',
+  '福井', '山梨', '長野', '岐阜',
+  '静岡', '愛知', '三重',
+  '滋賀', '京都', '大阪', '兵庫', '奈良', '和歌山',
+  '鳥取', '島根', '岡山', '廣島', '山口',
+  '徳島', '香川', '愛媛', '高知',
   '福岡', '佐賀', '長崎',
-  '熊本', '大分',
-  '宮崎', '鹿児島', '沖縄',
-  '東京', '大阪', '神奈川', '兵庫',
+  '熊本', '大分', '宮崎', '鹿児島', '沖縄',
 ];
 
-// 日本地圖底圖 URL（Cloudinary，深色背景 + 淺灰色陸地）
-const MAP_IMAGE_URL = 'https://res.cloudinary.com/lyuww36c/image/upload/v1783099664/japan_map_dark.png';
+// 新地圖底圖：深色背景 + 淺灰陸地 + 白色縣市名稱
+const MAP_IMAGE_URL = 'https://res.cloudinary.com/lyuww36c/image/upload/v1783135352/japan_map_labeled.png';
 
 export function MapPage({ allSake, onSakeClick }: MapPageProps) {
   const [selectedPrefecture, setSelectedPrefecture] = useState<string | null>(null);
@@ -35,7 +33,10 @@ export function MapPage({ allSake, onSakeClick }: MapPageProps) {
   // 取得資料中實際存在的縣市
   const availablePrefectures = useMemo(() => {
     const set = new Set(allSake.map((s) => s.prefecture).filter(Boolean));
-    return PREFECTURE_ORDER.filter((p) => set.has(p));
+    // 先按照預設順序排，再加入不在清單中的縣市
+    const ordered = PREFECTURE_ORDER.filter((p) => set.has(p));
+    set.forEach((p) => { if (p && !PREFECTURE_ORDER.includes(p)) ordered.push(p); });
+    return ordered;
   }, [allSake]);
 
   // 各縣市的酒款數量
@@ -65,11 +66,14 @@ export function MapPage({ allSake, onSakeClick }: MapPageProps) {
         <p className="text-xs text-gray-400 mt-0.5">{allSake.length} 款 · {availablePrefectures.length} 個產地</p>
       </div>
 
-      {/* 地圖區域（純底圖，無圓點） */}
-      <div className="relative mx-4 mb-3 rounded-2xl overflow-hidden bg-[#0f172a]" style={{ aspectRatio: '1/1' }}>
+      {/* 地圖區域（含縣市名稱標示） */}
+      <div
+        className="relative mx-4 mb-3 rounded-2xl overflow-hidden bg-[#0f172a]"
+        style={{ aspectRatio: '4/3' }}
+      >
         <img
           src={MAP_IMAGE_URL}
-          alt="日本地圖"
+          alt="日本產地地圖"
           className="absolute inset-0 w-full h-full object-contain"
         />
       </div>
@@ -97,46 +101,17 @@ export function MapPage({ allSake, onSakeClick }: MapPageProps) {
         </div>
       </div>
 
-      {/* 選中縣市的酒款列表 */}
+      {/* 選中縣市的酒款列表（SakeCard 完整卡片） */}
       {selectedPrefecture && (
         <div className="flex-1 overflow-y-auto px-4 pb-4">
-          <h2 className="text-sm font-semibold text-amber-400 mb-2">
+          <h2 className="text-sm font-semibold text-amber-400 mb-3">
             {selectedPrefecture} · {selectedSakes.length} 款
           </h2>
-          <div className="space-y-2">
+          <div className="flex flex-col gap-3">
             {selectedSakes.map((sake) => (
-              <button
-                key={sake.id}
-                onClick={() => onSakeClick(sake.id)}
-                className="w-full bg-gray-800 rounded-xl p-3 flex items-center gap-3 hover:bg-gray-700 transition-colors text-left"
-              >
-                {sake.imageUrl ? (
-                  <img
-                    src={sake.imageUrl}
-                    alt={sake.name}
-                    className="w-10 h-14 object-cover rounded-lg flex-shrink-0"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).style.display = 'none';
-                    }}
-                  />
-                ) : (
-                  <div className="w-10 h-14 bg-gray-700 rounded-lg flex-shrink-0 flex items-center justify-center text-lg">
-                    🍶
-                  </div>
-                )}
-                <div className="flex-1 min-w-0">
-                  <div className="font-medium text-white text-sm truncate">{sake.name}</div>
-                  <div className="text-xs text-gray-400 truncate">{sake.brewery}</div>
-                  {sake.type && (
-                    <div className="text-xs text-amber-500 mt-0.5">{sake.type}</div>
-                  )}
-                </div>
-                {sake.rating && (
-                  <div className="text-amber-400 text-sm font-bold flex-shrink-0">
-                    ★ {sake.rating}
-                  </div>
-                )}
-              </button>
+              <div key={sake.id} onClick={() => onSakeClick(sake.id)} className="cursor-pointer">
+                <SakeCard sake={sake} />
+              </div>
             ))}
           </div>
         </div>
