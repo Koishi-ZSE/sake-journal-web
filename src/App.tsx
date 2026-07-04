@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Home, BarChart3, Map, Settings, PenLine } from 'lucide-react';
+import { Home, BarChart3, Map, Settings, PenLine, X } from 'lucide-react';
 import { useSakeData } from './hooks/useSakeData';
 import { HomePage } from './pages/HomePage';
 import { RankingPage } from './pages/RankingPage';
@@ -18,6 +18,7 @@ function AppInner() {
   const [currentPage, setCurrentPage] = useState<PageType>('home');
   const [selectedSakeId, setSelectedSakeId] = useState<string | null>(null);
   const [prevPage, setPrevPage] = useState<PageType>('home');
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const { allSake, isLoading, addCustomSake, updateSakeImage, updateSake } = useSakeData();
   const { isEditor, requestEdit } = useAuth();
 
@@ -86,7 +87,7 @@ function AppInner() {
   ] as const;
 
   return (
-    <div className="flex flex-col h-screen bg-black">
+    <div className="flex flex-col h-screen bg-black" style={{ isolation: 'isolate' }}>
       {/* 密碼輸入 Modal */}
       <PasswordModal />
 
@@ -114,6 +115,7 @@ function AppInner() {
             onBack={handleBack}
             onUpdateImage={updateSakeImage}
             onEdit={isEditor ? handleGoEdit : undefined}
+            onOpenLightbox={(url) => setLightboxUrl(url)}
           />
         )}
         {currentPage === 'edit' && selectedSake && (
@@ -124,6 +126,30 @@ function AppInner() {
           />
         )}
       </div>
+
+      {/* Lightbox：渲染在最外層，不受 overflow-y-auto 影響 */}
+      {lightboxUrl && (
+        <div
+          className="fixed inset-0 flex items-center justify-center bg-black"
+          style={{ zIndex: 9999 }}
+          onClick={() => setLightboxUrl(null)}
+        >
+          <button
+            onClick={() => setLightboxUrl(null)}
+            className="absolute top-4 right-4 flex items-center justify-center w-11 h-11 bg-gray-800/90 hover:bg-gray-700 text-white rounded-full border border-gray-600 transition-colors"
+            style={{ zIndex: 10000 }}
+          >
+            <X size={22} />
+          </button>
+          <img
+            src={lightboxUrl}
+            alt="完整照片"
+            className="select-none"
+            style={{ maxWidth: '100vw', maxHeight: '100dvh', objectFit: 'contain' }}
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
 
       {/* 底部導航欄 */}
       <nav className="bg-gray-950 border-t border-gray-800 sticky bottom-0">
