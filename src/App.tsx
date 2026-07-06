@@ -19,8 +19,8 @@ function AppInner() {
   const [selectedSakeId, setSelectedSakeId] = useState<string | null>(null);
   const [prevPage, setPrevPage] = useState<PageType>('home');
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
-  // 返回 editlist 時要滾動到的酒款 id
-  const [scrollToSakeId, setScrollToSakeId] = useState<string | null>(null);
+  // 返回 editlist 時要滾動到的酒款 id（用 ref 避免觸發額外 render）
+  const scrollToSakeIdRef = useRef<string | null>(null);
   const { allSake, isLoading, addCustomSake, updateSakeImage, updateSake } = useSakeData();
   const { isEditor, requestEdit } = useAuth();
 
@@ -46,15 +46,21 @@ function AppInner() {
     if (!el) return;
 
     // 如果有指定要滾動到的酒款，用 scrollIntoView 精確定位
-    if (currentPage === 'editlist' && scrollToSakeId) {
-      const targetId = scrollToSakeId;
-      setScrollToSakeId(null);
-      // 等 DOM 渲染完成後再滾動
+    if (currentPage === 'editlist' && scrollToSakeIdRef.current) {
+      const targetId = scrollToSakeIdRef.current;
+      scrollToSakeIdRef.current = null;
+      // 等 DOM 渲染完成後再滾動（兩層 rAF 確保 list 已完整渲染）
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-          const el2 = document.getElementById(`editlist-sake-${targetId}`);
-          if (el2) {
-            el2.scrollIntoView({ block: 'center' });
+          const target = document.getElementById(`editlist-sake-${targetId}`);
+          if (target) {
+            target.scrollIntoView({ block: 'center' });
+          } else {
+            // fallback：DOM 還沒好，再等一個 frame
+            requestAnimationFrame(() => {
+              const t2 = document.getElementById(`editlist-sake-${targetId}`);
+              if (t2) t2.scrollIntoView({ block: 'center' });
+            });
           }
         });
       });
@@ -65,7 +71,7 @@ function AppInner() {
     requestAnimationFrame(() => {
       el.scrollTop = saved ?? 0;
     });
-  }, [currentPage, scrollToSakeId]);
+  }, [currentPage]);
 
   const handleSakeClick = (sakeId: string) => {
     setPrevPage(currentPage);
@@ -92,7 +98,7 @@ function AppInner() {
     const backTo = prevPage === 'editlist' ? 'editlist' : 'home';
     setPrevPage(backTo);
     // 儲存後返回詳細頁，再從詳細頁返回 editlist 時要滾動到該酒款
-    if (backTo === 'editlist') setScrollToSakeId(id);
+    if (backTo === 'editlist') scrollToSakeIdRef.current = id;
     setSelectedSakeId(id);
     navigateTo('detail', { resetScroll: true });
   };
@@ -154,7 +160,7 @@ function AppInner() {
               setPrevPage('editlist');
               setSelectedSakeId(id);
               // 記錄要滾動到的酒款 id，返回時用 scrollIntoView 定位
-              setScrollToSakeId(id);
+              scrollToSakeIdRef.current = id;
               delete scrollPositions.current['edit'];
               setCurrentPage('edit');
             }}
