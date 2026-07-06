@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Home, BarChart3, Map, Settings, PenLine, X } from 'lucide-react';
 import { useSakeData } from './hooks/useSakeData';
 import { HomePage } from './pages/HomePage';
@@ -22,10 +22,37 @@ function AppInner() {
   const { allSake, isLoading, addCustomSake, updateSakeImage, updateSake } = useSakeData();
   const { isEditor, requestEdit } = useAuth();
 
+  // 記錄各頁面的滾動位置，切換頁面時恢復
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const scrollPositions = useRef<Partial<Record<PageType, number>>>({});
+
+  // 切換頁面時：先儲存目前頁的 scrollTop，再切換
+  const navigateTo = useCallback((newPage: PageType, options?: { resetScroll?: boolean }) => {
+    if (scrollRef.current) {
+      scrollPositions.current[currentPage] = scrollRef.current.scrollTop;
+    }
+    if (options?.resetScroll) {
+      // 新頁面從頂部開始
+      delete scrollPositions.current[newPage];
+    }
+    setCurrentPage(newPage);
+  }, [currentPage]);
+
+  // 頁面切換後恢復滾動位置
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const saved = scrollPositions.current[currentPage];
+    // 用 requestAnimationFrame 確保 DOM 已渲染
+    requestAnimationFrame(() => {
+      el.scrollTop = saved ?? 0;
+    });
+  }, [currentPage]);
+
   const handleSakeClick = (sakeId: string) => {
     setPrevPage(currentPage);
     setSelectedSakeId(sakeId);
-    setCurrentPage('detail');
+    navigateTo('detail', { resetScroll: true });
   };
 
   const handleAddSake = async (sakeData: any) => {
@@ -34,9 +61,9 @@ function AppInner() {
     if (newSake?.id) {
       setPrevPage('home');
       setSelectedSakeId(newSake.id);
-      setCurrentPage('detail');
+      navigateTo('detail', { resetScroll: true });
     } else {
-      setCurrentPage('home');
+      navigateTo('home');
     }
   };
 
@@ -47,23 +74,23 @@ function AppInner() {
     const backTo = prevPage === 'editlist' ? 'editlist' : 'home';
     setPrevPage(backTo);
     setSelectedSakeId(id);
-    setCurrentPage('detail');
+    navigateTo('detail', { resetScroll: true });
   };
 
   const handleBack = () => {
-    setCurrentPage(prevPage);
+    navigateTo(prevPage);
   };
 
   const handleGoEdit = () => {
     setPrevPage('detail');
-    setCurrentPage('edit');
+    navigateTo('edit', { resetScroll: true });
   };
 
   const handleNavClick = (page: PageType) => {
     if (page === 'editlist') {
-      requestEdit(() => setCurrentPage('editlist'));
+      requestEdit(() => navigateTo('editlist'));
     } else {
-      setCurrentPage(page);
+      navigateTo(page);
     }
   };
 
@@ -95,7 +122,7 @@ function AppInner() {
       <PasswordModal />
 
       {/* 主內容區域 */}
-      <div className="flex-1 overflow-y-auto">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto">
         {currentPage === 'home' && <HomePage allSake={allSake} onSakeClick={handleSakeClick} />}
         {currentPage === 'ranking' && <RankingPage allSake={allSake} onSakeClick={handleSakeClick} />}
         {currentPage === 'map' && <MapPage allSake={allSake} onSakeClick={handleSakeClick} />}
@@ -106,16 +133,16 @@ function AppInner() {
             onSelectSake={(id) => {
               setPrevPage('editlist');
               setSelectedSakeId(id);
-              setCurrentPage('edit');
+              navigateTo('edit', { resetScroll: true });
             }}
-            onAdd={() => setCurrentPage('add')}
+            onAdd={() => navigateTo('add', { resetScroll: true })}
           />
         )}
         {currentPage === 'add' && (
           <AddSakePage
             onAdd={handleAddSake}
             allSake={allSake}
-            onCancel={() => setCurrentPage('home')}
+            onCancel={() => navigateTo('home')}
           />
         )}
         {currentPage === 'detail' && selectedSake && (
@@ -132,7 +159,7 @@ function AppInner() {
             sake={selectedSake}
             allSake={allSake}
             onSave={handleEditSake}
-            onBack={() => setCurrentPage(prevPage === 'editlist' ? 'editlist' : 'detail')}
+            onBack={() => navigateTo(prevPage === 'editlist' ? 'editlist' : 'detail')}
           />
         )}
       </div>
