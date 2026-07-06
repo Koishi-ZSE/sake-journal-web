@@ -57,6 +57,7 @@ export function EditListPage({ allSake, onSelectSake, onAdd }: EditListPageProps
           filtered.map((sake) => (
             <button
               key={sake.id}
+              id={`editlist-sake-${sake.id}`}
               onClick={() => onSelectSake(sake.id)}
               className="w-full flex items-center gap-3 px-4 py-3 bg-gray-900 hover:bg-gray-800 border border-gray-800 hover:border-gray-600 rounded-xl transition-colors text-left"
             >

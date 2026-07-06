@@ -19,6 +19,8 @@ function AppInner() {
   const [selectedSakeId, setSelectedSakeId] = useState<string | null>(null);
   const [prevPage, setPrevPage] = useState<PageType>('home');
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  // 返回 editlist 時要滾動到的酒款 id
+  const [scrollToSakeId, setScrollToSakeId] = useState<string | null>(null);
   const { allSake, isLoading, addCustomSake, updateSakeImage, updateSake } = useSakeData();
   const { isEditor, requestEdit } = useAuth();
 
@@ -42,12 +44,28 @@ function AppInner() {
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
+
+    // 如果有指定要滾動到的酒款，用 scrollIntoView 精確定位
+    if (currentPage === 'editlist' && scrollToSakeId) {
+      const targetId = scrollToSakeId;
+      setScrollToSakeId(null);
+      // 等 DOM 渲染完成後再滾動
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          const el2 = document.getElementById(`editlist-sake-${targetId}`);
+          if (el2) {
+            el2.scrollIntoView({ block: 'center' });
+          }
+        });
+      });
+      return;
+    }
+
     const saved = scrollPositions.current[currentPage];
-    // 用 requestAnimationFrame 確保 DOM 已渲染
     requestAnimationFrame(() => {
       el.scrollTop = saved ?? 0;
     });
-  }, [currentPage]);
+  }, [currentPage, scrollToSakeId]);
 
   const handleSakeClick = (sakeId: string) => {
     setPrevPage(currentPage);
@@ -73,6 +91,8 @@ function AppInner() {
     // prevPage 設為編輯前的來源頁（editlist 或 home），讓詳細頁返回可以回到正確位置
     const backTo = prevPage === 'editlist' ? 'editlist' : 'home';
     setPrevPage(backTo);
+    // 儲存後返回詳細頁，再從詳細頁返回 editlist 時要滾動到該酒款
+    if (backTo === 'editlist') setScrollToSakeId(id);
     setSelectedSakeId(id);
     navigateTo('detail', { resetScroll: true });
   };
@@ -133,8 +153,8 @@ function AppInner() {
             onSelectSake={(id) => {
               setPrevPage('editlist');
               setSelectedSakeId(id);
-              // 不用 resetScroll，保留 editlist 的滾動位置，返回時可恢復
-              // 但要確保編輯頁本身從頂部開始，所以先清除 edit 的位置
+              // 記錄要滾動到的酒款 id，返回時用 scrollIntoView 定位
+              setScrollToSakeId(id);
               delete scrollPositions.current['edit'];
               setCurrentPage('edit');
             }}
