@@ -43,6 +43,9 @@ function AppInner() {
   const handleEditSake = async (id: string, updates: any) => {
     await updateSake(id, updates);
     // 儲存後跳轉到該酒款的詳細頁
+    // prevPage 設為編輯前的來源頁（editlist 或 home），讓詳細頁返回可以回到正確位置
+    const backTo = prevPage === 'editlist' ? 'editlist' : 'home';
+    setPrevPage(backTo);
     setSelectedSakeId(id);
     setCurrentPage('detail');
   };
