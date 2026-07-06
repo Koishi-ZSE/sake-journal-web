@@ -133,7 +133,10 @@ function AppInner() {
             onSelectSake={(id) => {
               setPrevPage('editlist');
               setSelectedSakeId(id);
-              navigateTo('edit', { resetScroll: true });
+              // 不用 resetScroll，保留 editlist 的滾動位置，返回時可恢復
+              // 但要確保編輯頁本身從頂部開始，所以先清除 edit 的位置
+              delete scrollPositions.current['edit'];
+              setCurrentPage('edit');
             }}
             onAdd={() => navigateTo('add', { resetScroll: true })}
           />
