@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { ArrowLeft, Save, X } from 'lucide-react';
+import { ArrowLeft, Save, X, Trash2 } from 'lucide-react';
 import { SakeItem } from '../types';
 import { ImageUploader } from '../components/ImageUploader';
 
@@ -7,6 +7,7 @@ interface EditSakePageProps {
   sake: SakeItem;
   allSake: SakeItem[];
   onSave: (id: string, updates: Partial<SakeItem>) => void;
+  onDelete: (id: string) => Promise<void>;
   onBack: () => void;
 }
 
@@ -19,7 +20,7 @@ const RADAR_FIELDS = [
   { name: 'sweetness', label: '甜度' },
 ] as const;
 
-// 縣市清單（與 AddSakePage 一致）
+// 縣市清單
 const PREFECTURES = [
   '北海道',
   '青森', '岩手', '宮城', '秋田', '山形', '福島',
@@ -65,17 +66,13 @@ function MiniRadar({ scores }: { scores: Record<string, number | undefined> }) {
 
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} overflow="visible">
-      {/* 背景網格 */}
       {grids.map((d, i) => (
         <path key={i} d={d} fill="none" stroke="#374151" strokeWidth="0.8" />
       ))}
-      {/* 軸線 */}
       {axisPoints.map((p, i) => (
         <line key={i} x1={cx} y1={cy} x2={p.x} y2={p.y} stroke="#374151" strokeWidth="0.8" />
       ))}
-      {/* 數值多邊形 */}
       <path d={toPath(valuePoints)} fill="rgba(251,191,36,0.25)" stroke="#fbbf24" strokeWidth="1.5" />
-      {/* 標籤 */}
       {RADAR_FIELDS.map((f, i) => {
         const a = angleOf(i);
         const lx = cx + (r + 20) * Math.cos(a);
@@ -90,13 +87,12 @@ function MiniRadar({ scores }: { scores: Record<string, number | undefined> }) {
   );
 }
 
-// 固定酒體清單（與 AddSakePage 和首頁篩選一致）
 const SAKE_TYPES = [
   '純米大吟釀', '大吟釀', '純米吟釀', '吟釀',
   '特別純米酒', '純米酒', '特別本釀造', '本釀造', '其他/未標註',
 ];
 
-export function EditSakePage({ sake, allSake, onSave, onBack }: EditSakePageProps) {
+export function EditSakePage({ sake, allSake, onSave, onDelete, onBack }: EditSakePageProps) {
   const [formData, setFormData] = useState({
     name: sake.name || '',
     brewery: sake.brewery || '',
@@ -121,6 +117,8 @@ export function EditSakePage({ sake, allSake, onSave, onBack }: EditSakePageProp
     firstDrinkDate: sake.firstDrinkDate || '',
   });
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -137,7 +135,6 @@ export function EditSakePage({ sake, allSake, onSave, onBack }: EditSakePageProp
     return isNaN(n) ? undefined : Math.min(5, Math.max(0, n));
   };
 
-  // 即時雷達圖分數
   const radarScores = useMemo(() => ({
     aroma: parseScore(formData.aroma),
     smoothness: parseScore(formData.smoothness),
@@ -173,7 +170,6 @@ export function EditSakePage({ sake, allSake, onSave, onBack }: EditSakePageProp
       imageUrl: formData.imageUrl.trim() || undefined,
       firstDrinkDate: formData.firstDrinkDate.trim() || undefined,
     });
-    // onSave 會在 App.tsx 中跳轉頁面，不需要在這裡設定 saved 狀態
   };
 
   const inputClass = "w-full px-3 py-2.5 bg-gray-800 border border-gray-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent placeholder-gray-500 text-sm";
@@ -220,7 +216,7 @@ export function EditSakePage({ sake, allSake, onSave, onBack }: EditSakePageProp
                 <label className={labelClass}>縣市</label>
                 <select name="prefecture" value={formData.prefecture} onChange={handleChange} className={inputClass}>
                   <option value="">選擇縣市</option>
-                  {PREFECTURES.map((p) => (
+                  {PREFECTURES.map((p ) => (
                     <option key={p} value={p}>{p}</option>
                   ))}
                 </select>
@@ -276,17 +272,7 @@ export function EditSakePage({ sake, allSake, onSave, onBack }: EditSakePageProp
             </div>
             <div>
               <label className={labelClass}>酒精濃度（%）</label>
-              <input
-                type="number"
-                name="alcoholContent"
-                value={formData.alcoholContent}
-                onChange={handleChange}
-                placeholder="例：15"
-                min="0"
-                max="100"
-                step="0.1"
-                className={inputClass}
-              />
+              <input type="number" name="alcoholContent" value={formData.alcoholContent} onChange={handleChange} placeholder="例：15" min="0" max="100" step="0.1" className={inputClass} />
             </div>
             <div>
               <label className={labelClass}>日本酒度</label>
@@ -303,7 +289,7 @@ export function EditSakePage({ sake, allSake, onSave, onBack }: EditSakePageProp
           </div>
         </div>
 
-        {/* 五維評分 + 即時雷達圖 */}
+        {/* 五維評分 */}
         <div className={sectionClass}>
           <p className="text-xs text-amber-500 font-semibold uppercase tracking-wider mb-3">風味評分（0–5）</p>
           <div className="flex gap-4 items-start">
@@ -325,12 +311,10 @@ export function EditSakePage({ sake, allSake, onSave, onBack }: EditSakePageProp
                 </div>
               ))}
             </div>
-            {/* 即時雷達圖 */}
             <div className="flex-shrink-0 hidden sm:block">
               <MiniRadar scores={radarScores} />
             </div>
           </div>
-          {/* 行動裝置顯示雷達圖 */}
           <div className="sm:hidden flex justify-center mt-3">
             <MiniRadar scores={radarScores} />
           </div>
@@ -342,17 +326,7 @@ export function EditSakePage({ sake, allSake, onSave, onBack }: EditSakePageProp
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className={labelClass}>個人綜合評分（0–5）</label>
-              <input
-                type="number"
-                name="rating"
-                value={formData.rating}
-                onChange={handleChange}
-                placeholder="例：4.5"
-                min="0"
-                max="5"
-                step="0.1"
-                className={inputClass}
-              />
+              <input type="number" name="rating" value={formData.rating} onChange={handleChange} placeholder="例：4.5" min="0" max="5" step="0.1" className={inputClass} />
             </div>
             <div>
               <label className={labelClass}>品飲日期</label>
@@ -369,26 +343,68 @@ export function EditSakePage({ sake, allSake, onSave, onBack }: EditSakePageProp
 
         {/* 按鈕區 */}
         <div className={`${sectionClass} flex gap-3`}>
-          {/* 取消編輯 */}
-          <button
-            type="button"
-            onClick={onBack}
-            className="flex-1 flex items-center justify-center gap-2 font-semibold py-3 px-4 rounded-lg border border-gray-600 text-gray-300 hover:bg-gray-800 transition-colors"
-          >
+          <button type="button" onClick={onBack} className="flex-1 flex items-center justify-center gap-2 font-semibold py-3 px-4 rounded-lg border border-gray-600 text-gray-300 hover:bg-gray-800 transition-colors">
             <X size={18} />
             取消編輯
           </button>
-          {/* 儲存 */}
-          <button
-            type="submit"
-            disabled={saving}
-            className="flex-1 flex items-center justify-center gap-2 font-semibold py-3 px-4 rounded-lg bg-amber-600 hover:bg-amber-500 text-white transition-colors disabled:opacity-60"
-          >
+          <button type="submit" disabled={saving} className="flex-1 flex items-center justify-center gap-2 font-semibold py-3 px-4 rounded-lg bg-amber-600 hover:bg-amber-500 text-white transition-colors disabled:opacity-60">
             <Save size={18} />
             {saving ? '儲存中...' : '儲存變更'}
           </button>
         </div>
+
+        {/* 刪除酒款 */}
+        <div className="pt-2">
+          <button
+            type="button"
+            onClick={() => setShowDeleteConfirm(true)}
+            className="w-full flex items-center justify-center gap-2 font-semibold py-3 px-4 rounded-lg border border-red-800 text-red-400 hover:bg-red-900/30 transition-colors"
+          >
+            <Trash2 size={18} />
+            刪除此酒款
+          </button>
+        </div>
       </form>
+
+      {/* 刪除確認 Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 flex items-center justify-center z-50" style={{ backgroundColor: 'rgba(0,0,0,0.75)' }}>
+          <div className="bg-gray-900 border border-gray-700 rounded-2xl p-6 mx-4 max-w-sm w-full shadow-2xl">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-full bg-red-900/50 flex items-center justify-center flex-shrink-0">
+                <Trash2 size={20} className="text-red-400" />
+              </div>
+              <h2 className="text-lg font-bold text-gray-100">確認刪除</h2>
+            </div>
+            <p className="text-gray-400 text-sm mb-1">確定要刪除以下酒款嗎？</p>
+            <p className="text-amber-400 font-semibold mb-4">{sake.name}</p>
+            <p className="text-red-400 text-xs mb-5">此操作無法復原，試算表中的資料也會一併刪除。</p>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={deleting}
+                className="flex-1 py-2.5 rounded-lg border border-gray-600 text-gray-300 hover:bg-gray-800 font-semibold transition-colors"
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                disabled={deleting}
+                onClick={async () => {
+                  setDeleting(true);
+                  await onDelete(sake.id);
+                  setDeleting(false);
+                  setShowDeleteConfirm(false);
+                }}
+                className="flex-1 py-2.5 rounded-lg bg-red-700 hover:bg-red-600 text-white font-semibold transition-colors disabled:opacity-60"
+              >
+                {deleting ? '刪除中...' : '確認刪除'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
