@@ -58,7 +58,18 @@ export function useSakeFilter(allSake: SakeItem[], filters: FilterParams): SakeI
 }
 
 export function getFilterOptions(allSake: SakeItem[]) {
-  const types = [...new Set(allSake.map((s) => s.type).filter(Boolean))].sort() as string[];
+  // 固定酒體選項，不依賴資料庫動態生成
+  const types = [
+    '純米大吟釀',
+    '大吟釀',
+    '純米吟釀',
+    '吟釀',
+    '特別純米酒',
+    '純米酒',
+    '特別本釀造',
+    '本釀造',
+    '其他/未標註',
+  ];
   const rices = [...new Set(allSake.map((s) => s.rice).filter(Boolean))].sort() as string[];
   const flavors = [...new Set(allSake.map((s) => s.flavor).filter(Boolean))].sort() as string[];
   const prefectureSet = new Set(allSake.map((s) => s.prefecture).filter(Boolean) as string[]);
