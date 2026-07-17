@@ -90,8 +90,13 @@ function MiniRadar({ scores }: { scores: Record<string, number | undefined> }) {
   );
 }
 
+// 固定酒體清單（與 AddSakePage 和首頁篩選一致）
+const SAKE_TYPES = [
+  '純米大吟釀', '大吟釀', '純米吟釀', '吟釀',
+  '特別純米酒', '純米酒', '特別本釀造', '本釀造', '其他/未標註',
+];
+
 export function EditSakePage({ sake, allSake, onSave, onBack }: EditSakePageProps) {
-  const typeOptions = [...new Set(allSake.map((s) => s.type).filter(Boolean))].sort() as string[];
   const [formData, setFormData] = useState({
     name: sake.name || '',
     brewery: sake.brewery || '',
@@ -232,10 +237,10 @@ export function EditSakePage({ sake, allSake, onSave, onBack }: EditSakePageProp
               <label className={labelClass}>酒體</label>
               <select name="type" value={formData.type} onChange={handleChange} className={inputClass}>
                 <option value="">選擇酒體</option>
-                {typeOptions.map((t) => (
+                {SAKE_TYPES.map((t) => (
                   <option key={t} value={t}>{t}</option>
                 ))}
-                {formData.type && !typeOptions.includes(formData.type) && (
+                {formData.type && !SAKE_TYPES.includes(formData.type) && (
                   <option value={formData.type}>{formData.type}</option>
                 )}
               </select>
