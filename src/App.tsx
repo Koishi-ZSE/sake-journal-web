@@ -19,44 +19,36 @@ function AppInner() {
   const [selectedSakeId, setSelectedSakeId] = useState<string | null>(null);
   const [prevPage, setPrevPage] = useState<PageType>('home');
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
-  // 返回 editlist 時要滾動到的酒款 id（用 ref 避免觸發額外 render）
   const scrollToSakeIdRef = useRef<string | null>(null);
-  const { allSake, isLoading, addCustomSake, updateSakeImage, updateSake } = useSakeData();
+  const { allSake, isLoading, addCustomSake, updateSakeImage, updateSake, deleteSake } = useSakeData();
   const { isEditor, requestEdit } = useAuth();
 
-  // 記錄各頁面的滾動位置，切換頁面時恢復
   const scrollRef = useRef<HTMLDivElement>(null);
   const scrollPositions = useRef<Partial<Record<PageType, number>>>({});
 
-  // 切換頁面時：先儲存目前頁的 scrollTop，再切換
   const navigateTo = useCallback((newPage: PageType, options?: { resetScroll?: boolean }) => {
     if (scrollRef.current) {
       scrollPositions.current[currentPage] = scrollRef.current.scrollTop;
     }
     if (options?.resetScroll) {
-      // 新頁面從頂部開始
       delete scrollPositions.current[newPage];
     }
     setCurrentPage(newPage);
   }, [currentPage]);
 
-  // 頁面切換後恢復滾動位置
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
 
-    // 如果有指定要滾動到的酒款，用 scrollIntoView 精確定位
     if (currentPage === 'editlist' && scrollToSakeIdRef.current) {
       const targetId = scrollToSakeIdRef.current;
       scrollToSakeIdRef.current = null;
-      // 等 DOM 渲染完成後再滾動（兩層 rAF 確保 list 已完整渲染）
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           const target = document.getElementById(`editlist-sake-${targetId}`);
           if (target) {
             target.scrollIntoView({ block: 'center' });
           } else {
-            // fallback：DOM 還沒好，再等一個 frame
             requestAnimationFrame(() => {
               const t2 = document.getElementById(`editlist-sake-${targetId}`);
               if (t2) t2.scrollIntoView({ block: 'center' });
@@ -81,7 +73,6 @@ function AppInner() {
 
   const handleAddSake = async (sakeData: any) => {
     const newSake = await addCustomSake(sakeData);
-    // 新增後跳轉到該酒款的詳細頁
     if (newSake?.id) {
       setPrevPage('home');
       setSelectedSakeId(newSake.id);
@@ -93,14 +84,17 @@ function AppInner() {
 
   const handleEditSake = async (id: string, updates: any) => {
     await updateSake(id, updates);
-    // 儲存後跳轉到該酒款的詳細頁
-    // prevPage 設為編輯前的來源頁（editlist 或 home），讓詳細頁返回可以回到正確位置
     const backTo = prevPage === 'editlist' ? 'editlist' : 'home';
     setPrevPage(backTo);
-    // 儲存後返回詳細頁，再從詳細頁返回 editlist 時要滾動到該酒款
     if (backTo === 'editlist') scrollToSakeIdRef.current = id;
     setSelectedSakeId(id);
     navigateTo('detail', { resetScroll: true });
+  };
+
+  const handleDeleteSake = async (id: string) => {
+    await deleteSake(id);
+    setSelectedSakeId(null);
+    navigateTo('editlist', { resetScroll: false });
   };
 
   const handleBack = () => {
@@ -133,7 +127,6 @@ function AppInner() {
 
   const selectedSake = selectedSakeId ? allSake.find((s) => s.id === selectedSakeId) : null;
 
-  // 底部導航 tabs（編輯模式下才顯示「編輯」tab）
   const navTabs = [
     { id: 'home', icon: Home, label: '首頁' },
     { id: 'ranking', icon: BarChart3, label: '排行榜' },
@@ -144,10 +137,8 @@ function AppInner() {
 
   return (
     <div className="flex flex-col h-screen bg-black" style={{ isolation: 'isolate' }}>
-      {/* 密碼輸入 Modal */}
       <PasswordModal />
 
-      {/* 主內容區域 */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto">
         {currentPage === 'home' && <HomePage allSake={allSake} onSakeClick={handleSakeClick} />}
         {currentPage === 'ranking' && <RankingPage allSake={allSake} onSakeClick={handleSakeClick} />}
@@ -159,7 +150,6 @@ function AppInner() {
             onSelectSake={(id) => {
               setPrevPage('editlist');
               setSelectedSakeId(id);
-              // 記錄要滾動到的酒款 id，返回時用 scrollIntoView 定位
               scrollToSakeIdRef.current = id;
               delete scrollPositions.current['edit'];
               setCurrentPage('edit');
@@ -188,12 +178,12 @@ function AppInner() {
             sake={selectedSake}
             allSake={allSake}
             onSave={handleEditSake}
+            onDelete={handleDeleteSake}
             onBack={() => navigateTo(prevPage === 'editlist' ? 'editlist' : 'detail')}
           />
         )}
       </div>
 
-      {/* Lightbox：渲染在最外層，不受 overflow-y-auto 影響 */}
       {lightboxUrl && (
         <div
           className="fixed inset-0 flex items-center justify-center bg-black"
@@ -217,7 +207,6 @@ function AppInner() {
         </div>
       )}
 
-      {/* 底部導航欄 */}
       <nav className="bg-gray-950 border-t border-gray-800 sticky bottom-0">
         <div className="flex justify-around max-w-4xl mx-auto">
           {navTabs.map(({ id, icon: Icon, label }) => (
