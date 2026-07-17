@@ -23,6 +23,42 @@ const prefectures = [
   '福岡', '佐賀', '長崎', '熊本', '大分', '宮崎', '鹿児島', '沖縄',
 ];
 
+// 五維評分滑桿元件
+function ScoreSlider({
+  label,
+  name,
+  value,
+  onChange,
+}: {
+  label: string;
+  name: string;
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+}) {
+  const num = value ? parseFloat(value) : 0;
+  return (
+    <div>
+      <div className="flex justify-between items-center mb-1">
+        <label className="text-sm font-semibold text-gray-300">{label}</label>
+        <span className="text-sm font-bold text-amber-400">{value || '—'}</span>
+      </div>
+      <input
+        type="range"
+        name={name}
+        min="1"
+        max="5"
+        step="0.5"
+        value={value || '3'}
+        onChange={onChange}
+        className="w-full accent-amber-500"
+      />
+      <div className="flex justify-between text-xs text-gray-600 mt-0.5">
+        <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span>
+      </div>
+    </div>
+  );
+}
+
 export function AddSakePage({ onAdd, allSake, onCancel }: AddSakePageProps) {
   // 固定酒體選項（涵蓋所有常見種類）
   const typeOptions = [
@@ -45,10 +81,27 @@ export function AddSakePage({ onAdd, allSake, onCancel }: AddSakePageProps) {
     bodyType: '',
     rice: '',
     flavor: '',
+    brewingNote: '',
+    otherNote: '',
+    alcoholContent: '',
+    sakeLevel: '',
+    yeast: '',
+    firstDrinkDate: '',
+    // 五維評分（空字串代表未填）
+    aroma: '',
+    smoothness: '',
+    tasteScore: '',
+    complexity: '',
+    sweetness: '',
     rating: '',
-    notes: '',
+    description: '',
     imageUrl: '',
   });
+
+  // 是否展開進階欄位
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  // 是否展開五維評分
+  const [showScores, setShowScores] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -64,21 +117,33 @@ export function AddSakePage({ onAdd, allSake, onCancel }: AddSakePageProps) {
     if (!formData.name.trim()) { alert('請輸入酒名'); return; }
     if (!formData.prefecture.trim()) { alert('請選擇縣市'); return; }
     await onAdd({
-      name: formData.name,
-      brewery: formData.brewery || undefined,
+      name: formData.name.trim(),
+      brewery: formData.brewery.trim() || undefined,
       prefecture: formData.prefecture,
       type: formData.type || undefined,
       bodyType: formData.bodyType || undefined,
-      rice: formData.rice || undefined,
-      flavor: formData.flavor || undefined,
+      rice: formData.rice.trim() || undefined,
+      flavor: formData.flavor.trim() || undefined,
+      brewingNote: formData.brewingNote.trim() || undefined,
+      otherNote: formData.otherNote.trim() || undefined,
+      alcoholContent: formData.alcoholContent.trim() || undefined,
+      sakeLevel: formData.sakeLevel.trim() || undefined,
+      yeast: formData.yeast.trim() || undefined,
+      firstDrinkDate: formData.firstDrinkDate || undefined,
+      aroma: formData.aroma ? parseFloat(formData.aroma) : undefined,
+      smoothness: formData.smoothness ? parseFloat(formData.smoothness) : undefined,
+      tasteScore: formData.tasteScore ? parseFloat(formData.tasteScore) : undefined,
+      complexity: formData.complexity ? parseFloat(formData.complexity) : undefined,
+      sweetness: formData.sweetness ? parseFloat(formData.sweetness) : undefined,
       rating: formData.rating ? parseFloat(formData.rating) : undefined,
-      notes: formData.notes || undefined,
+      description: formData.description.trim() || undefined,
       imageUrl: formData.imageUrl || undefined,
     });
   };
 
   const inputClass = "w-full px-3 py-2.5 bg-gray-800 border border-gray-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent placeholder-gray-500";
   const labelClass = "block text-sm font-semibold text-gray-300 mb-1.5";
+  const sectionClass = "border border-gray-700 rounded-xl p-4 space-y-4 bg-gray-800/30";
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-6">
@@ -87,8 +152,9 @@ export function AddSakePage({ onAdd, allSake, onCancel }: AddSakePageProps) {
         <p className="text-gray-400 text-sm">記錄您品嚐過的日本酒</p>
       </div>
 
-      <form onSubmit={handleSubmit} className="bg-gray-900 rounded-xl border border-gray-700 p-6 space-y-4">
-        {/* 照片上傳 */}
+      <form onSubmit={handleSubmit} className="bg-gray-900 rounded-xl border border-gray-700 p-6 space-y-5">
+
+        {/* ── 照片上傳 ── */}
         <div>
           <label className={labelClass}>酒款照片</label>
           <ImageUploader
@@ -109,68 +175,140 @@ export function AddSakePage({ onAdd, allSake, onCancel }: AddSakePageProps) {
           </div>
         </div>
 
-        <div>
-          <label className={labelClass}>酒名 <span className="text-red-400">*</span></label>
-          <input type="text" name="name" value={formData.name} onChange={handleChange} placeholder="例：獺祭" className={inputClass} required />
-        </div>
+        {/* ── 基本資料 ── */}
+        <div className={sectionClass}>
+          <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">基本資料</p>
 
-        <div>
-          <label className={labelClass}>釀造廠</label>
-          <input type="text" name="brewery" value={formData.brewery} onChange={handleChange} placeholder="例：旭酒造" className={inputClass} />
-        </div>
-
-        <div>
-          <label className={labelClass}>縣市 <span className="text-red-400">*</span></label>
-          <select name="prefecture" value={formData.prefecture} onChange={handleChange} className={inputClass} required>
-            <option value="">選擇縣市</option>
-            {prefectures.map((pref) => (
-              <option key={pref} value={pref}>{pref}</option>
-            ))}
-          </select>
-        </div>
-
-        {/* 酒體 + 風格 */}
-        <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className={labelClass}>酒體</label>
-            <select name="type" value={formData.type} onChange={handleChange} className={inputClass}>
-              <option value="">選擇酒體</option>
-              {typeOptions.map((t) => (
-                <option key={t} value={t}>{t}</option>
+            <label className={labelClass}>酒名 <span className="text-red-400">*</span></label>
+            <input type="text" name="name" value={formData.name} onChange={handleChange} placeholder="例：獺祭" className={inputClass} required />
+          </div>
+
+          <div>
+            <label className={labelClass}>釀造廠</label>
+            <input type="text" name="brewery" value={formData.brewery} onChange={handleChange} placeholder="例：旭酒造" className={inputClass} />
+          </div>
+
+          <div>
+            <label className={labelClass}>縣市 <span className="text-red-400">*</span></label>
+            <select name="prefecture" value={formData.prefecture} onChange={handleChange} className={inputClass} required>
+              <option value="">選擇縣市</option>
+              {prefectures.map((pref) => (
+                <option key={pref} value={pref}>{pref}</option>
               ))}
             </select>
           </div>
+
+          {/* 酒體 + 風格 */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={labelClass}>酒體</label>
+              <select name="type" value={formData.type} onChange={handleChange} className={inputClass}>
+                <option value="">選擇酒體</option>
+                {typeOptions.map((t) => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className={labelClass}>風格</label>
+              <select name="bodyType" value={formData.bodyType} onChange={handleChange} className={inputClass}>
+                <option value="">選擇風格</option>
+                {BODY_STYLE_OPTIONS.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* 米種 + 質感 */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={labelClass}>米種</label>
+              <input type="text" name="rice" value={formData.rice} onChange={handleChange} placeholder="例：山田錦" className={inputClass} />
+            </div>
+            <div>
+              <label className={labelClass}>質感</label>
+              <input type="text" name="flavor" value={formData.flavor} onChange={handleChange} placeholder="例：清爽、果香" className={inputClass} />
+            </div>
+          </div>
+
           <div>
-            <label className={labelClass}>風格</label>
-            <select name="bodyType" value={formData.bodyType} onChange={handleChange} className={inputClass}>
-              <option value="">選擇風格</option>
-              {BODY_STYLE_OPTIONS.map((s) => (
-                <option key={s} value={s}>{s}</option>
-              ))}
-            </select>
+            <label className={labelClass}>初飲日期</label>
+            <input type="date" name="firstDrinkDate" value={formData.firstDrinkDate} onChange={handleChange} className={inputClass} />
           </div>
         </div>
 
-        {/* 米種 + 質感 */}
-        <div className="grid grid-cols-2 gap-4">
+        {/* ── 品飲筆記 ── */}
+        <div className={sectionClass}>
+          <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">品飲筆記</p>
           <div>
-            <label className={labelClass}>米種</label>
-            <input type="text" name="rice" value={formData.rice} onChange={handleChange} placeholder="例：山田錦" className={inputClass} />
+            <label className={labelClass}>評分 (0–5)</label>
+            <input type="number" name="rating" value={formData.rating} onChange={handleChange} placeholder="例：4.5" min="0" max="5" step="0.1" className={inputClass} />
           </div>
           <div>
-            <label className={labelClass}>質感</label>
-            <input type="text" name="flavor" value={formData.flavor} onChange={handleChange} placeholder="例：清爽、果香" className={inputClass} />
+            <label className={labelClass}>品飲筆記</label>
+            <textarea name="description" value={formData.description} onChange={handleChange} placeholder="記錄您對這款酒的感受..." rows={4} className={inputClass} />
           </div>
         </div>
 
-        <div>
-          <label className={labelClass}>評分 (0–5)</label>
-          <input type="number" name="rating" value={formData.rating} onChange={handleChange} placeholder="例：4.5" min="0" max="5" step="0.1" className={inputClass} />
+        {/* ── 五維評分（可展開） ── */}
+        <div className={sectionClass}>
+          <button
+            type="button"
+            onClick={() => setShowScores(!showScores)}
+            className="w-full flex items-center justify-between text-left"
+          >
+            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">五維評分（選填）</p>
+            <span className="text-gray-500 text-sm">{showScores ? '▲ 收起' : '▼ 展開'}</span>
+          </button>
+          {showScores && (
+            <div className="space-y-4 pt-2">
+              <ScoreSlider label="香氣" name="aroma" value={formData.aroma} onChange={handleChange} />
+              <ScoreSlider label="順口" name="smoothness" value={formData.smoothness} onChange={handleChange} />
+              <ScoreSlider label="酒味" name="tasteScore" value={formData.tasteScore} onChange={handleChange} />
+              <ScoreSlider label="層次" name="complexity" value={formData.complexity} onChange={handleChange} />
+              <ScoreSlider label="甜度" name="sweetness" value={formData.sweetness} onChange={handleChange} />
+            </div>
+          )}
         </div>
 
-        <div>
-          <label className={labelClass}>品飲筆記</label>
-          <textarea name="notes" value={formData.notes} onChange={handleChange} placeholder="記錄您對這款酒的感受..." rows={4} className={inputClass} />
+        {/* ── 進階資料（可展開） ── */}
+        <div className={sectionClass}>
+          <button
+            type="button"
+            onClick={() => setShowAdvanced(!showAdvanced)}
+            className="w-full flex items-center justify-between text-left"
+          >
+            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">進階資料（選填）</p>
+            <span className="text-gray-500 text-sm">{showAdvanced ? '▲ 收起' : '▼ 展開'}</span>
+          </button>
+          {showAdvanced && (
+            <div className="space-y-4 pt-2">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className={labelClass}>酒精濃度</label>
+                  <input type="text" name="alcoholContent" value={formData.alcoholContent} onChange={handleChange} placeholder="例：16%" className={inputClass} />
+                </div>
+                <div>
+                  <label className={labelClass}>日本酒度</label>
+                  <input type="text" name="sakeLevel" value={formData.sakeLevel} onChange={handleChange} placeholder="例：+3" className={inputClass} />
+                </div>
+              </div>
+              <div>
+                <label className={labelClass}>酵母</label>
+                <input type="text" name="yeast" value={formData.yeast} onChange={handleChange} placeholder="例：協會9號" className={inputClass} />
+              </div>
+              <div>
+                <label className={labelClass}>製法備註</label>
+                <input type="text" name="brewingNote" value={formData.brewingNote} onChange={handleChange} placeholder="例：生酒、無濾過" className={inputClass} />
+              </div>
+              <div>
+                <label className={labelClass}>其他備註</label>
+                <input type="text" name="otherNote" value={formData.otherNote} onChange={handleChange} placeholder="其他補充說明" className={inputClass} />
+              </div>
+            </div>
+          )}
         </div>
 
         <button
