@@ -24,8 +24,18 @@ const prefectures = [
 ];
 
 export function AddSakePage({ onAdd, allSake, onCancel }: AddSakePageProps) {
-  // 動態酒體選項（與首頁篩選一致）
-  const typeOptions = [...new Set(allSake.map((s) => s.type).filter(Boolean))].sort() as string[];
+  // 固定酒體選項（涵蓋所有常見種類）
+  const typeOptions = [
+    '純米大吟釀',
+    '大吟釀',
+    '純米吟釀',
+    '吟釀',
+    '特別純米酒',
+    '純米酒',
+    '特別本釀造',
+    '本釀造',
+    '其他/未標註',
+  ];
 
   const [formData, setFormData] = useState({
     name: '',
