@@ -33,9 +33,6 @@ export function HomePage({ allSake, onSakeClick }: HomePageProps) {
   };
 
   const hasActiveFilters = searchQuery || selectedType || selectedBodyStyle || selectedPrefecture;
-  const avgRating = allSake.length
-    ? (allSake.reduce((sum, s) => sum + (Number(s.rating) || 0), 0) / allSake.length).toFixed(1)
-    : '0.0';
 
   const selectClass = "w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-gray-200 text-sm focus:outline-none focus:border-amber-500";
 
