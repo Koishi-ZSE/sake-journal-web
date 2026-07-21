@@ -7,14 +7,14 @@ const GAS_URL = 'https://script.google.com/macros/s/AKfycbwd3UjQw1XtncTd6k_xBSIs
 const SAKE_CACHE_KEY = 'sake_journal_sheet_cache';
 const OVERRIDES_CACHE_KEY = 'sake_journal_overrides_cache';
 
-function parseDateToNum(dateStr?: string): number {
-  if (!dateStr) return 0;
-  const parts = dateStr.replace(/-/g, '/').split('/');
-  if (parts.length < 3) return 0;
-  const y = parseInt(parts[0], 10);
-  const m = parseInt(parts[1], 10);
-  const d = parseInt(parts[2], 10);
-  return y * 10000 + m * 100 + d;
+function parseRowNum(id?: string): number {
+  if (!id) return 0;
+  const match = String(id).match(/^row_(\d+)$/);
+  return match ? Number(match[1]) : 0;
+}
+
+function sortBySheetRowDesc(a: SakeItem, b: SakeItem): number {
+  return parseRowNum(b.id) - parseRowNum(a.id);
 }
 
 function normalizeSake(item: SakeItem): SakeItem {
@@ -28,7 +28,7 @@ function normalizeSake(item: SakeItem): SakeItem {
 
 const fallbackData: SakeItem[] = (sakeDataRaw as SakeItem[])
   .map(normalizeSake)
-  .sort((a, b) => parseDateToNum(b.firstDrinkDate) - parseDateToNum(a.firstDrinkDate));
+  .sort(sortBySheetRowDesc);
 
 async function gasGet<T>(action: string): Promise<T> {
   const url = `${GAS_URL}?action=${action}&t=${Date.now()}`;
@@ -57,11 +57,18 @@ export function useSakeData() {
     const data = await gasGet<SakeItem[]>('getAllSake');
     const normalized = data
       .map(normalizeSake)
-      .sort((a, b) => parseDateToNum(b.firstDrinkDate) - parseDateToNum(a.firstDrinkDate));
+      .sort(sortBySheetRowDesc);
 
     setSheetSake(normalized);
     localStorage.setItem(SAKE_CACHE_KEY, JSON.stringify(normalized));
     return normalized;
+  }, []);
+
+  const loadOverridesFromSheet = useCallback(async () => {
+    const latestOverrides = await gasGet<Record<string, Partial<SakeItem>>>('getOverrides');
+    setOverrides(latestOverrides);
+    localStorage.setItem(OVERRIDES_CACHE_KEY, JSON.stringify(latestOverrides));
+    return latestOverrides;
   }, []);
 
   useEffect(() => {
@@ -74,13 +81,19 @@ export function useSakeData() {
           setSheetSake(JSON.parse(cached));
         }
 
+        const cachedOverrides = localStorage.getItem(OVERRIDES_CACHE_KEY);
+        if (cachedOverrides && !cancelled) {
+          setOverrides(JSON.parse(cachedOverrides));
+        }
+
         const latest = await loadSakeFromSheet();
         if (!cancelled) setSheetSake(latest);
+
         const latestOverrides = await gasGet<Record<string, Partial<SakeItem>>>('getOverrides');
         if (!cancelled) {
-           setOverrides(latestOverrides);
-           localStorage.setItem(OVERRIDES_CACHE_KEY, JSON.stringify(latestOverrides));
-}
+          setOverrides(latestOverrides);
+          localStorage.setItem(OVERRIDES_CACHE_KEY, JSON.stringify(latestOverrides));
+        }
       } catch (e) {
         console.warn('Failed to load sake from Google Sheet:', e);
 
@@ -105,14 +118,27 @@ export function useSakeData() {
   }, [loadSakeFromSheet]);
 
   const allSake = useMemo(() => {
-  return sheetSake
-    .map((item) => ({
-      ...item,
-      ...(overrides[item.id] || {}),
-    }))
-    .map(normalizeSake)
-    .sort((a, b) => parseDateToNum(b.firstDrinkDate) - parseDateToNum(a.firstDrinkDate));
-}, [sheetSake, overrides]);
+    return sheetSake
+      .map((item) => {
+        const overrideById = overrides[item.id];
+        const numericId = item.id?.replace(/^row_/, '');
+        const overrideByNumericId = numericId ? overrides[numericId] : undefined;
+
+        const overrideByName = Object.values(overrides).find((override) => {
+          if (!override.name) return false;
+          return override.name === item.name && (!override.brewery || override.brewery === item.brewery);
+        });
+
+        return {
+          ...item,
+          ...(overrideByName || {}),
+          ...(overrideByNumericId || {}),
+          ...(overrideById || {}),
+        };
+      })
+      .map(normalizeSake)
+      .sort(sortBySheetRowDesc);
+  }, [sheetSake, overrides]);
 
   const addCustomSake = async (sake: Omit<CustomSake, 'isCustom' | 'createdAt'>) => {
     const result = await gasPost({
@@ -146,12 +172,13 @@ export function useSakeData() {
 
   const updateSakeImage = async (id: string, imageUrl: string) => {
     await gasPost({ action: 'updateImage', id, imageUrl });
-    await loadSakeFromSheet();
+    await loadOverridesFromSheet();
   };
 
   const updateSake = async (id: string, updates: Partial<SakeItem>) => {
     await gasPost({ action: 'updateSake', id, updates });
     await loadSakeFromSheet();
+    await loadOverridesFromSheet();
   };
 
   return {
