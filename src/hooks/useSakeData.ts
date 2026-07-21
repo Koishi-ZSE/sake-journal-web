@@ -112,10 +112,12 @@ export function useSakeData() {
     const latest = await loadSakeFromSheet();
 
     if (result.id) {
-      return latest.find((item) => item.id === result.id) || latest[0];
+      const created = latest.find((item) => item.id === result.id);
+      if (created) return created;
     }
 
-    return latest.find((item) => item.name === sake.name) || latest[0];
+    const sameName = [...latest].reverse().find((item) => item.name === sake.name);
+    return sameName || latest[0];
   };
 
   const deleteSake = async (id: string): Promise<void> => {
