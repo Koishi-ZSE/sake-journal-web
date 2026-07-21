@@ -26,6 +26,27 @@ function normalizeSake(item: SakeItem): SakeItem {
   };
 }
 
+function getOverrideImageUrl(
+  item: SakeItem,
+  overrides: Record<string, Partial<SakeItem>>
+): string | undefined {
+  const overrideById = overrides[item.id];
+  const numericId = item.id?.replace(/^row_/, '');
+  const overrideByNumericId = numericId ? overrides[numericId] : undefined;
+
+  const overrideByName = Object.values(overrides).find((override) => {
+    if (!override.name) return false;
+    return override.name === item.name && (!override.brewery || override.brewery === item.brewery);
+  });
+
+  return (
+    overrideById?.imageUrl ||
+    overrideByNumericId?.imageUrl ||
+    overrideByName?.imageUrl ||
+    item.imageUrl
+  );
+}
+
 const fallbackData: SakeItem[] = (sakeDataRaw as SakeItem[])
   .map(normalizeSake)
   .sort(sortBySheetRowDesc);
@@ -119,23 +140,10 @@ export function useSakeData() {
 
   const allSake = useMemo(() => {
     return sheetSake
-      .map((item) => {
-        const overrideById = overrides[item.id];
-        const numericId = item.id?.replace(/^row_/, '');
-        const overrideByNumericId = numericId ? overrides[numericId] : undefined;
-
-        const overrideByName = Object.values(overrides).find((override) => {
-          if (!override.name) return false;
-          return override.name === item.name && (!override.brewery || override.brewery === item.brewery);
-        });
-
-        return {
-          ...item,
-          ...(overrideByName || {}),
-          ...(overrideByNumericId || {}),
-          ...(overrideById || {}),
-        };
-      })
+      .map((item) => ({
+        ...item,
+        imageUrl: getOverrideImageUrl(item, overrides),
+      }))
       .map(normalizeSake)
       .sort(sortBySheetRowDesc);
   }, [sheetSake, overrides]);
