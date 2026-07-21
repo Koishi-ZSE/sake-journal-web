@@ -1,15 +1,11 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { SakeItem, CustomSake, parseRiceField } from '../types';
 import sakeDataRaw from '../../sake-data.json';
 
-// Google Apps Script Web App URL
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbwd3UjQw1XtncTd6k_xBSIsXYgVytiXc-jA0AhwbiwwjGsujc4coFsKgAEYPtVgBkzW/exec';
 
-// localStorage 快取 key（作為離線備份 ）
-const CUSTOM_SAKE_KEY = 'sake_journal_custom_sake';
-const OVERRIDES_CACHE_KEY = 'sake_journal_overrides_cache';
+const SAKE_CACHE_KEY = 'sake_journal_sheet_cache';
 
-// 解析日期字串為可排序的數字（YYYY/M/D → YYYYMMDD）
 function parseDateToNum(dateStr?: string): number {
   if (!dateStr) return 0;
   const parts = dateStr.replace(/-/g, '/').split('/');
@@ -20,189 +16,134 @@ function parseDateToNum(dateStr?: string): number {
   return y * 10000 + m * 100 + d;
 }
 
-// 預先解析所有原始資料的米種欄位，並按 firstDrinkDate 由新到舊排序
-const parsedBaseData: SakeItem[] = (sakeDataRaw as SakeItem[])
-  .map((item) => {
-    const { rice, seimai } = parseRiceField(item.rice);
-    return { ...item, riceParsed: rice, seimai };
-  })
+function normalizeSake(item: SakeItem): SakeItem {
+  const { rice, seimai } = parseRiceField(item.rice);
+  return {
+    ...item,
+    riceParsed: item.riceParsed || rice,
+    seimai: item.seimai || seimai,
+  };
+}
+
+const fallbackData: SakeItem[] = (sakeDataRaw as SakeItem[])
+  .map(normalizeSake)
   .sort((a, b) => parseDateToNum(b.firstDrinkDate) - parseDateToNum(a.firstDrinkDate));
 
-// 呼叫 Apps Script API（GET）
-async function gasGet(action: string): Promise<Record<string, unknown>> {
-  const res = await fetch(`${GAS_URL}?action=${action}`);
+async function gasGet<T>(action: string): Promise<T> {
+  const url = `${GAS_URL}?action=${action}&t=${Date.now()}`;
+  const res = await fetch(url, { cache: 'no-store' });
   if (!res.ok) throw new Error(`GAS GET failed: ${res.status}`);
   return res.json();
 }
 
-// 呼叫 Apps Script API（POST）
-async function gasPost(body: Record<string, unknown>): Promise<{ success: boolean; id?: string }> {
+async function gasPost(body: Record<string, unknown>): Promise<{ success: boolean; id?: string; error?: string }> {
   const res = await fetch(GAS_URL, {
     method: 'POST',
     body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(`GAS POST failed: ${res.status}`);
-  return res.json();
+  const data = await res.json();
+  if (!data.success) throw new Error(data.error || 'GAS POST failed');
+  return data;
 }
 
 export function useSakeData() {
-  const [customSake, setCustomSake] = useState<CustomSake[]>([]);
-  const [overrides, setOverrides] = useState<Record<string, Partial<SakeItem>>>({});
+  const [sheetSake, setSheetSake] = useState<SakeItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem(CUSTOM_SAKE_KEY);
-      if (stored) {
-        const parsed: CustomSake[] = JSON.parse(stored);
-        const withParsed = parsed.map((item) => {
-          const { rice, seimai } = parseRiceField(item.rice);
-          return { ...item, riceParsed: rice, seimai };
-        });
-        setCustomSake(withParsed);
-      }
-      const cachedOverrides = localStorage.getItem(OVERRIDES_CACHE_KEY);
-      if (cachedOverrides) setOverrides(JSON.parse(cachedOverrides));
-    } catch (e) {
-      console.warn('Failed to load from localStorage:', e);
-    }
+  const loadSakeFromSheet = useCallback(async () => {
+    const data = await gasGet<SakeItem[]>('getAllSake');
+    const normalized = data
+      .map(normalizeSake)
+      .sort((a, b) => parseDateToNum(b.firstDrinkDate) - parseDateToNum(a.firstDrinkDate));
 
-    setIsLoading(false);
-
-    gasGet('getOverrides')
-      .then((data) => {
-        const overridesData = data as Record<string, Partial<SakeItem>>;
-        setOverrides(overridesData);
-        localStorage.setItem(OVERRIDES_CACHE_KEY, JSON.stringify(overridesData));
-      })
-      .catch((e) => {
-        console.warn('Failed to load overrides from GAS, using cache:', e);
-      });
+    setSheetSake(normalized);
+    localStorage.setItem(SAKE_CACHE_KEY, JSON.stringify(normalized));
+    return normalized;
   }, []);
 
-  const allSake = useMemo(() => {
-    const toNum = (v: unknown): number | undefined => {
-      if (v === undefined || v === null || v === '') return undefined;
-      const n = Number(v);
-      return isNaN(n) ? undefined : n;
-    };
-    const applyOverrides = (item: SakeItem): SakeItem => {
-      const override = overrides[item.id];
-      if (!override) return item;
-      const result = { ...item, ...override };
-      if (override.rice !== undefined) {
-        const { rice, seimai } = parseRiceField(override.rice as string);
-        result.riceParsed = rice;
-        result.seimai = seimai;
-      }
-      const numFields = ['aroma', 'smoothness', 'tasteScore', 'complexity', 'sweetness', 'rating'] as const;
-      for (const field of numFields) {
-        if (override[field] !== undefined) {
-          result[field] = toNum(override[field]);
-        }
-      }
-      return result;
-    };
-    return [...customSake.map(applyOverrides), ...parsedBaseData.map(applyOverrides)];
-  }, [customSake, overrides]);
+  useEffect(() => {
+    let cancelled = false;
 
-  /** 新增自訂酒款 */
+    async function init() {
+      try {
+        const cached = localStorage.getItem(SAKE_CACHE_KEY);
+        if (cached && !cancelled) {
+          setSheetSake(JSON.parse(cached));
+        }
+
+        const latest = await loadSakeFromSheet();
+        if (!cancelled) setSheetSake(latest);
+      } catch (e) {
+        console.warn('Failed to load sake from Google Sheet:', e);
+
+        if (!cancelled) {
+          const cached = localStorage.getItem(SAKE_CACHE_KEY);
+          if (cached) {
+            setSheetSake(JSON.parse(cached));
+          } else {
+            setSheetSake(fallbackData);
+          }
+        }
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    }
+
+    init();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [loadSakeFromSheet]);
+
+  const allSake = useMemo(() => sheetSake, [sheetSake]);
+
   const addCustomSake = async (sake: Omit<CustomSake, 'isCustom' | 'createdAt'>) => {
-    const { rice, seimai } = parseRiceField(sake.rice);
-    const tempId = `custom_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    const newSake: CustomSake = {
-      ...sake,
-      riceParsed: rice,
-      seimai,
-      isCustom: true,
-      createdAt: Date.now(),
-      id: tempId,
-    };
-    const updated = [...customSake, newSake];
-    setCustomSake(updated);
-    localStorage.setItem(CUSTOM_SAKE_KEY, JSON.stringify(updated));
-    try {
-      await gasPost({ action: 'addSake', sake: newSake });
-    } catch (e) {
-      console.warn('Failed to sync new sake to GAS:', e);
+    const result = await gasPost({
+      action: 'addSake',
+      sake: {
+        ...sake,
+        isCustom: true,
+        createdAt: Date.now(),
+      },
+    });
+
+    const latest = await loadSakeFromSheet();
+
+    if (result.id) {
+      return latest.find((item) => item.id === result.id) || latest[0];
     }
-    return newSake;
+
+    return latest.find((item) => item.name === sake.name) || latest[0];
   };
 
-  const deleteCustomSake = (id: string) => {
-    const updated = customSake.filter((s) => s.id !== id);
-    setCustomSake(updated);
-    localStorage.setItem(CUSTOM_SAKE_KEY, JSON.stringify(updated));
-  };
-
-  /** 刪除酒款（本地 + GAS 同步） */
   const deleteSake = async (id: string): Promise<void> => {
-    const isCustom = customSake.some((s) => s.id === id);
-    if (isCustom) {
-      const updated = customSake.filter((s) => s.id !== id);
-      setCustomSake(updated);
-      localStorage.setItem(CUSTOM_SAKE_KEY, JSON.stringify(updated));
-    } else {
-      const newOverrides = { ...overrides };
-      delete newOverrides[id];
-      setOverrides(newOverrides);
-      localStorage.setItem(OVERRIDES_CACHE_KEY, JSON.stringify(newOverrides));
-    }
-    try {
-      await gasPost({ action: 'deleteSake', id });
-    } catch (e) {
-      console.warn('Failed to sync delete to GAS:', e);
-    }
+    await gasPost({ action: 'deleteSake', id });
+    await loadSakeFromSheet();
   };
 
-  /** 更新照片 URL */
+  const deleteCustomSake = async (id: string): Promise<void> => {
+    await deleteSake(id);
+  };
+
   const updateSakeImage = async (id: string, imageUrl: string) => {
-    const isCustom = customSake.some((s) => s.id === id);
-    if (isCustom) {
-      const updated = customSake.map((s) => s.id === id ? { ...s, imageUrl } : s);
-      setCustomSake(updated);
-      localStorage.setItem(CUSTOM_SAKE_KEY, JSON.stringify(updated));
-    } else {
-      const newOverrides = { ...overrides, [id]: { ...(overrides[id] || {}), imageUrl } };
-      setOverrides(newOverrides);
-      localStorage.setItem(OVERRIDES_CACHE_KEY, JSON.stringify(newOverrides));
-    }
-    try {
-      await gasPost({ action: 'updateImage', id, imageUrl });
-    } catch (e) {
-      console.warn('Failed to sync image to GAS:', e);
-    }
+    await gasPost({ action: 'updateImage', id, imageUrl });
+    await loadSakeFromSheet();
   };
 
-  /** 更新任意欄位 */
   const updateSake = async (id: string, updates: Partial<SakeItem>) => {
-    const isCustom = customSake.some((s) => s.id === id);
-    if (isCustom) {
-      const updated = customSake.map((s) => {
-        if (s.id !== id) return s;
-        const merged = { ...s, ...updates };
-        if (updates.rice !== undefined) {
-          const { rice, seimai } = parseRiceField(updates.rice as string);
-          merged.riceParsed = rice;
-          merged.seimai = seimai;
-        }
-        return merged;
-      });
-      setCustomSake(updated);
-      localStorage.setItem(CUSTOM_SAKE_KEY, JSON.stringify(updated));
-    } else {
-      const current = overrides[id] || {};
-      const merged = { ...current, ...updates };
-      const newOverrides = { ...overrides, [id]: merged };
-      setOverrides(newOverrides);
-      localStorage.setItem(OVERRIDES_CACHE_KEY, JSON.stringify(newOverrides));
-    }
-    try {
-      await gasPost({ action: 'updateSake', id, updates });
-    } catch (e) {
-      console.warn('Failed to sync updates to GAS:', e);
-    }
+    await gasPost({ action: 'updateSake', id, updates });
+    await loadSakeFromSheet();
   };
 
-  return { allSake, isLoading, addCustomSake, deleteCustomSake, updateSakeImage, updateSake, deleteSake };
+  return {
+    allSake,
+    isLoading,
+    addCustomSake,
+    deleteCustomSake,
+    updateSakeImage,
+    updateSake,
+    deleteSake,
+  };
 }
