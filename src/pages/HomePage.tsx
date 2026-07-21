@@ -45,7 +45,7 @@ export function HomePage({ allSake, onSakeClick }: HomePageProps) {
       <div className="mb-5">
         <h1 className="text-3xl font-bold text-amber-400 mb-1">koshi_sake journal</h1>
         <p className="text-gray-400 text-sm">
-          {filteredSake.length} 款 · 平均評分 {avgRating}
+          {filteredSake.length} 款
         </p>
       </div>
 
