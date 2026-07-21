@@ -5,6 +5,7 @@ import sakeDataRaw from '../../sake-data.json';
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbwd3UjQw1XtncTd6k_xBSIsXYgVytiXc-jA0AhwbiwwjGsujc4coFsKgAEYPtVgBkzW/exec';
 
 const SAKE_CACHE_KEY = 'sake_journal_sheet_cache';
+const OVERRIDES_CACHE_KEY = 'sake_journal_overrides_cache';
 
 function parseDateToNum(dateStr?: string): number {
   if (!dateStr) return 0;
@@ -49,6 +50,7 @@ async function gasPost(body: Record<string, unknown>): Promise<{ success: boolea
 
 export function useSakeData() {
   const [sheetSake, setSheetSake] = useState<SakeItem[]>([]);
+  const [overrides, setOverrides] = useState<Record<string, Partial<SakeItem>>>({});
   const [isLoading, setIsLoading] = useState(true);
 
   const loadSakeFromSheet = useCallback(async () => {
@@ -74,6 +76,11 @@ export function useSakeData() {
 
         const latest = await loadSakeFromSheet();
         if (!cancelled) setSheetSake(latest);
+        const latestOverrides = await gasGet<Record<string, Partial<SakeItem>>>('getOverrides');
+        if (!cancelled) {
+           setOverrides(latestOverrides);
+           localStorage.setItem(OVERRIDES_CACHE_KEY, JSON.stringify(latestOverrides));
+}
       } catch (e) {
         console.warn('Failed to load sake from Google Sheet:', e);
 
@@ -97,7 +104,15 @@ export function useSakeData() {
     };
   }, [loadSakeFromSheet]);
 
-  const allSake = useMemo(() => sheetSake, [sheetSake]);
+  const allSake = useMemo(() => {
+  return sheetSake
+    .map((item) => ({
+      ...item,
+      ...(overrides[item.id] || {}),
+    }))
+    .map(normalizeSake)
+    .sort((a, b) => parseDateToNum(b.firstDrinkDate) - parseDateToNum(a.firstDrinkDate));
+}, [sheetSake, overrides]);
 
   const addCustomSake = async (sake: Omit<CustomSake, 'isCustom' | 'createdAt'>) => {
     const result = await gasPost({
