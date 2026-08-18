@@ -19,6 +19,7 @@ function sortBySheetRowDesc(a: SakeItem, b: SakeItem): number {
 
 function normalizeSake(item: SakeItem): SakeItem {
   const { rice, seimai } = parseRiceField(item.rice);
+
   return {
     ...item,
     riceParsed: item.riceParsed || rice,
@@ -31,8 +32,10 @@ function getOverrideImageUrl(
   overrides: Record<string, Partial<SakeItem>>
 ): string | undefined {
   const overrideById = overrides[item.id];
-  const numericId = item.id?.replace(/^row_/, '');
-  const overrideByNumericId = numericId ? overrides[numericId] : undefined;
+
+  const rowNum = parseRowNum(item.id);
+  const overrideByLegacyIndex = rowNum > 1 ? overrides[String(rowNum - 1)] : undefined;
+  const overrideByRawRowNum = rowNum ? overrides[String(rowNum)] : undefined;
 
   const overrideByName = Object.values(overrides).find((override) => {
     if (!override.name) return false;
@@ -41,7 +44,8 @@ function getOverrideImageUrl(
 
   return (
     overrideById?.imageUrl ||
-    overrideByNumericId?.imageUrl ||
+    overrideByLegacyIndex?.imageUrl ||
+    overrideByRawRowNum?.imageUrl ||
     overrideByName?.imageUrl ||
     item.imageUrl
   );
@@ -54,18 +58,32 @@ const fallbackData: SakeItem[] = (sakeDataRaw as SakeItem[])
 async function gasGet<T>(action: string): Promise<T> {
   const url = `${GAS_URL}?action=${action}&t=${Date.now()}`;
   const res = await fetch(url, { cache: 'no-store' });
-  if (!res.ok) throw new Error(`GAS GET failed: ${res.status}`);
+
+  if (!res.ok) {
+    throw new Error(`GAS GET failed: ${res.status}`);
+  }
+
   return res.json();
 }
 
-async function gasPost(body: Record<string, unknown>): Promise<{ success: boolean; id?: string; error?: string }> {
+async function gasPost(
+  body: Record<string, unknown>
+): Promise<{ success: boolean; id?: string; error?: string }> {
   const res = await fetch(GAS_URL, {
     method: 'POST',
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(`GAS POST failed: ${res.status}`);
+
+  if (!res.ok) {
+    throw new Error(`GAS POST failed: ${res.status}`);
+  }
+
   const data = await res.json();
-  if (!data.success) throw new Error(data.error || 'GAS POST failed');
+
+  if (!data.success) {
+    throw new Error(data.error || 'GAS POST failed');
+  }
+
   return data;
 }
 
@@ -82,13 +100,16 @@ export function useSakeData() {
 
     setSheetSake(normalized);
     localStorage.setItem(SAKE_CACHE_KEY, JSON.stringify(normalized));
+
     return normalized;
   }, []);
 
   const loadOverridesFromSheet = useCallback(async () => {
     const latestOverrides = await gasGet<Record<string, Partial<SakeItem>>>('getOverrides');
+
     setOverrides(latestOverrides);
     localStorage.setItem(OVERRIDES_CACHE_KEY, JSON.stringify(latestOverrides));
+
     return latestOverrides;
   }, []);
 
@@ -97,9 +118,9 @@ export function useSakeData() {
 
     async function init() {
       try {
-        const cached = localStorage.getItem(SAKE_CACHE_KEY);
-        if (cached && !cancelled) {
-          setSheetSake(JSON.parse(cached));
+        const cachedSake = localStorage.getItem(SAKE_CACHE_KEY);
+        if (cachedSake && !cancelled) {
+          setSheetSake(JSON.parse(cachedSake));
         }
 
         const cachedOverrides = localStorage.getItem(OVERRIDES_CACHE_KEY);
@@ -107,8 +128,10 @@ export function useSakeData() {
           setOverrides(JSON.parse(cachedOverrides));
         }
 
-        const latest = await loadSakeFromSheet();
-        if (!cancelled) setSheetSake(latest);
+        const latestSake = await loadSakeFromSheet();
+        if (!cancelled) {
+          setSheetSake(latestSake);
+        }
 
         const latestOverrides = await gasGet<Record<string, Partial<SakeItem>>>('getOverrides');
         if (!cancelled) {
@@ -119,15 +142,17 @@ export function useSakeData() {
         console.warn('Failed to load sake from Google Sheet:', e);
 
         if (!cancelled) {
-          const cached = localStorage.getItem(SAKE_CACHE_KEY);
-          if (cached) {
-            setSheetSake(JSON.parse(cached));
+          const cachedSake = localStorage.getItem(SAKE_CACHE_KEY);
+          if (cachedSake) {
+            setSheetSake(JSON.parse(cachedSake));
           } else {
             setSheetSake(fallbackData);
           }
         }
       } finally {
-        if (!cancelled) setIsLoading(false);
+        if (!cancelled) {
+          setIsLoading(false);
+        }
       }
     }
 
@@ -160,18 +185,38 @@ export function useSakeData() {
 
     const latest = await loadSakeFromSheet();
 
+    let created: SakeItem | undefined;
+
     if (result.id) {
-      const created = latest.find((item) => item.id === result.id);
-      if (created) return created;
+      created = latest.find((item) => item.id === result.id);
     }
 
-    const sameName = [...latest].reverse().find((item) => item.name === sake.name);
-    return sameName || latest[0];
+    if (!created) {
+      created = [...latest].reverse().find((item) => item.name === sake.name) || latest[0];
+    }
+
+    if (created?.id && sake.imageUrl) {
+      await gasPost({
+        action: 'updateImage',
+        id: created.id,
+        imageUrl: sake.imageUrl,
+      });
+
+      await loadOverridesFromSheet();
+
+      return {
+        ...created,
+        imageUrl: sake.imageUrl,
+      };
+    }
+
+    return created;
   };
 
   const deleteSake = async (id: string): Promise<void> => {
     await gasPost({ action: 'deleteSake', id });
     await loadSakeFromSheet();
+    await loadOverridesFromSheet();
   };
 
   const deleteCustomSake = async (id: string): Promise<void> => {
