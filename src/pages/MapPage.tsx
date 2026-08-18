@@ -1,13 +1,14 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { SakeItem } from '../types';
 import { SakeCard } from '../components/SakeCard';
 
 interface MapPageProps {
   allSake: SakeItem[];
   onSakeClick: (sakeId: string) => void;
+  selectedPrefecture: string | null;
+  onPrefectureChange: (prefecture: string | null) => void;
 }
 
-// 由北到南的縣市順序（不帶後綴，與 sake-data.json 一致）
 const PREFECTURE_ORDER = [
   '北海道',
   '青森', '岩手', '秋田',
@@ -24,49 +25,57 @@ const PREFECTURE_ORDER = [
   '熊本', '大分', '宮崎', '鹿児島', '沖縄',
 ];
 
-// 新地圖底圖：深色背景 + 淺灰陸地 + 白色縣市名稱
 const MAP_IMAGE_URL = 'https://res.cloudinary.com/lyuww36c/image/upload/v1783135352/japan_map_labeled.png';
 
-export function MapPage({ allSake, onSakeClick }: MapPageProps) {
-  const [selectedPrefecture, setSelectedPrefecture] = useState<string | null>(null);
-
-  // 取得資料中實際存在的縣市
+export function MapPage({
+  allSake,
+  onSakeClick,
+  selectedPrefecture,
+  onPrefectureChange,
+}: MapPageProps) {
   const availablePrefectures = useMemo(() => {
     const set = new Set(allSake.map((s) => s.prefecture).filter(Boolean));
     const ordered = PREFECTURE_ORDER.filter((p) => set.has(p));
-    set.forEach((p) => { if (p && !PREFECTURE_ORDER.includes(p)) ordered.push(p); });
+
+    set.forEach((p) => {
+      if (p && !PREFECTURE_ORDER.includes(p)) {
+        ordered.push(p);
+      }
+    });
+
     return ordered;
   }, [allSake]);
 
-  // 各縣市的酒款數量
   const countByPrefecture = useMemo(() => {
     const map: Record<string, number> = {};
+
     allSake.forEach((s) => {
-      if (s.prefecture) map[s.prefecture] = (map[s.prefecture] || 0) + 1;
+      if (s.prefecture) {
+        map[s.prefecture] = (map[s.prefecture] || 0) + 1;
+      }
     });
+
     return map;
   }, [allSake]);
 
-  // 選中縣市的酒款
   const selectedSakes = useMemo(() => {
     if (!selectedPrefecture) return [];
     return allSake.filter((s) => s.prefecture === selectedPrefecture);
   }, [allSake, selectedPrefecture]);
 
-  const handlePrefectureClick = (pref: string) => {
-    setSelectedPrefecture(pref === selectedPrefecture ? null : pref);
+  const handlePrefectureClick = (prefecture: string) => {
+    onPrefectureChange(prefecture === selectedPrefecture ? null : prefecture);
   };
 
   return (
-    // 使用正常文件流，讓外層容器的 overflow-y-auto 負責滾動
     <div className="min-h-full bg-gray-950 text-white pb-6">
-      {/* 標題 */}
       <div className="px-4 pt-4 pb-2">
         <h1 className="text-xl font-bold text-amber-400">產地地圖</h1>
-        <p className="text-xs text-gray-400 mt-0.5">{allSake.length} 款 · {availablePrefectures.length} 個產地</p>
+        <p className="text-xs text-gray-400 mt-0.5">
+          {allSake.length} 款 · {availablePrefectures.length} 個產地
+        </p>
       </div>
 
-      {/* 地圖區域（含縣市名稱標示） */}
       <div
         className="relative mx-4 mb-3 rounded-2xl overflow-hidden bg-[#0f172a]"
         style={{ aspectRatio: '4/3' }}
@@ -78,38 +87,42 @@ export function MapPage({ allSake, onSakeClick }: MapPageProps) {
         />
       </div>
 
-      {/* 縣市按鈕列（由北到南，由左至右） */}
       <div className="px-4 mb-4">
         <div className="flex flex-wrap gap-2">
-          {availablePrefectures.map((pref) => {
-            const count = countByPrefecture[pref] || 0;
-            const isSelected = selectedPrefecture === pref;
+          {availablePrefectures.map((prefecture) => {
+            const count = countByPrefecture[prefecture] || 0;
+            const isSelected = selectedPrefecture === prefecture;
+
             return (
               <button
-                key={pref}
-                onClick={() => handlePrefectureClick(pref)}
+                key={prefecture}
+                onClick={() => handlePrefectureClick(prefecture)}
                 className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
                   isSelected
                     ? 'bg-amber-400 text-gray-900'
                     : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
                 }`}
               >
-                {pref} <span className="opacity-70">{count}</span>
+                {prefecture} <span className="opacity-70">{count}</span>
               </button>
             );
           })}
         </div>
       </div>
 
-      {/* 選中縣市的酒款列表（SakeCard 完整卡片，隨頁面自然延伸） */}
       {selectedPrefecture && (
         <div className="px-4">
           <h2 className="text-sm font-semibold text-amber-400 mb-3">
             {selectedPrefecture} · {selectedSakes.length} 款
           </h2>
+
           <div className="flex flex-col gap-3">
             {selectedSakes.map((sake) => (
-              <div key={sake.id} onClick={() => onSakeClick(sake.id)} className="cursor-pointer">
+              <div
+                key={sake.id}
+                onClick={() => onSakeClick(sake.id)}
+                className="cursor-pointer"
+              >
                 <SakeCard sake={sake} />
               </div>
             ))}
