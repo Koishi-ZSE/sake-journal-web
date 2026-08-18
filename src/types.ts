@@ -7,6 +7,8 @@ export interface SakeItem {
   rice?: string;
   riceParsed?: string;       // 解析後的米種（不含精米步合）
   seimai?: string;           // 精米步合
+  kojiSeimai?: string;       // 麴米精米步合
+  kakeSeimai?: string;       // 掛米精米步合
   brewingNote?: string;      // 製法備註（生酒、無濾過等）
   otherNote?: string;        // 其他備註
   alcoholContent?: string;   // 酒精濃度
