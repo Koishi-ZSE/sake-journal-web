@@ -18,21 +18,25 @@ function AppInner() {
   const [currentPage, setCurrentPage] = useState<PageType>('home');
   const [selectedSakeId, setSelectedSakeId] = useState<string | null>(null);
   const [prevPage, setPrevPage] = useState<PageType>('home');
+  const [selectedMapPrefecture, setSelectedMapPrefecture] = useState<string | null>(null);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
-  const scrollToSakeIdRef = useRef<string | null>(null);
-  const { allSake, isLoading, addCustomSake, updateSakeImage, updateSake, deleteSake } = useSakeData();
-  const { isEditor, requestEdit } = useAuth();
 
+  const scrollToSakeIdRef = useRef<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const scrollPositions = useRef<Partial<Record<PageType, number>>>({});
+
+  const { allSake, isLoading, addCustomSake, updateSakeImage, updateSake, deleteSake } = useSakeData();
+  const { isEditor, requestEdit } = useAuth();
 
   const navigateTo = useCallback((newPage: PageType, options?: { resetScroll?: boolean }) => {
     if (scrollRef.current) {
       scrollPositions.current[currentPage] = scrollRef.current.scrollTop;
     }
+
     if (options?.resetScroll) {
       delete scrollPositions.current[newPage];
     }
+
     setCurrentPage(newPage);
   }, [currentPage]);
 
@@ -43,6 +47,7 @@ function AppInner() {
     if (currentPage === 'editlist' && scrollToSakeIdRef.current) {
       const targetId = scrollToSakeIdRef.current;
       scrollToSakeIdRef.current = null;
+
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           const target = document.getElementById(`editlist-sake-${targetId}`);
@@ -50,12 +55,13 @@ function AppInner() {
             target.scrollIntoView({ block: 'center' });
           } else {
             requestAnimationFrame(() => {
-              const t2 = document.getElementById(`editlist-sake-${targetId}`);
-              if (t2) t2.scrollIntoView({ block: 'center' });
+              const retryTarget = document.getElementById(`editlist-sake-${targetId}`);
+              if (retryTarget) retryTarget.scrollIntoView({ block: 'center' });
             });
           }
         });
       });
+
       return;
     }
 
@@ -73,6 +79,7 @@ function AppInner() {
 
   const handleAddSake = async (sakeData: any) => {
     const newSake = await addCustomSake(sakeData);
+
     if (newSake?.id) {
       setPrevPage('home');
       setSelectedSakeId(newSake.id);
@@ -84,9 +91,14 @@ function AppInner() {
 
   const handleEditSake = async (id: string, updates: any) => {
     await updateSake(id, updates);
+
     const backTo = prevPage === 'editlist' ? 'editlist' : 'home';
     setPrevPage(backTo);
-    if (backTo === 'editlist') scrollToSakeIdRef.current = id;
+
+    if (backTo === 'editlist') {
+      scrollToSakeIdRef.current = id;
+    }
+
     setSelectedSakeId(id);
     navigateTo('detail', { resetScroll: true });
   };
@@ -119,7 +131,7 @@ function AppInner() {
       <div className="flex items-center justify-center h-screen bg-black">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-500 mx-auto mb-4"></div>
-          <p className="text-gray-400">載入中...</p>
+          <p className="text-gray-400">資料讀取中...</p>
         </div>
       </div>
     );
@@ -140,10 +152,25 @@ function AppInner() {
       <PasswordModal />
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto">
-        {currentPage === 'home' && <HomePage allSake={allSake} onSakeClick={handleSakeClick} />}
-        {currentPage === 'ranking' && <RankingPage allSake={allSake} onSakeClick={handleSakeClick} />}
-        {currentPage === 'map' && <MapPage allSake={allSake} onSakeClick={handleSakeClick} />}
+        {currentPage === 'home' && (
+          <HomePage allSake={allSake} onSakeClick={handleSakeClick} />
+        )}
+
+        {currentPage === 'ranking' && (
+          <RankingPage allSake={allSake} onSakeClick={handleSakeClick} />
+        )}
+
+        {currentPage === 'map' && (
+          <MapPage
+            allSake={allSake}
+            onSakeClick={handleSakeClick}
+            selectedPrefecture={selectedMapPrefecture}
+            onPrefectureChange={setSelectedMapPrefecture}
+          />
+        )}
+
         {currentPage === 'settings' && <SettingsPage />}
+
         {currentPage === 'editlist' && (
           <EditListPage
             allSake={allSake}
@@ -151,12 +178,13 @@ function AppInner() {
               setPrevPage('editlist');
               setSelectedSakeId(id);
               scrollToSakeIdRef.current = id;
-              delete scrollPositions.current['edit'];
+              delete scrollPositions.current.edit;
               setCurrentPage('edit');
             }}
             onAdd={() => navigateTo('add', { resetScroll: true })}
           />
         )}
+
         {currentPage === 'add' && (
           <AddSakePage
             onAdd={handleAddSake}
@@ -164,6 +192,7 @@ function AppInner() {
             onCancel={() => navigateTo('home')}
           />
         )}
+
         {currentPage === 'detail' && selectedSake && (
           <SakeDetailPage
             sake={selectedSake}
@@ -173,6 +202,7 @@ function AppInner() {
             onOpenLightbox={(url) => setLightboxUrl(url)}
           />
         )}
+
         {currentPage === 'edit' && selectedSake && (
           <EditSakePage
             sake={selectedSake}
@@ -197,9 +227,10 @@ function AppInner() {
           >
             <X size={22} />
           </button>
+
           <img
             src={lightboxUrl}
-            alt="完整照片"
+            alt="酒款照片"
             className="select-none"
             style={{ maxWidth: '100vw', maxHeight: '100dvh', objectFit: 'contain' }}
             onClick={(e) => e.stopPropagation()}
