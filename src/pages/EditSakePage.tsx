@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { ArrowLeft, Save, X, Trash2 } from 'lucide-react';
 import { SakeItem } from '../types';
 import { ImageUploader } from '../components/ImageUploader';
@@ -33,52 +33,129 @@ const PREFECTURES = [
   '福岡', '佐賀', '長崎', '熊本', '大分', '宮崎', '鹿児島', '沖縄',
 ];
 
-function MiniRadar({ scores }: { scores: Record<string, number | undefined> }) {
+const SAKE_TYPES = [
+  '純米大吟釀',
+  '大吟釀',
+  '純米吟釀',
+  '吟釀',
+  '特別純米酒',
+  '純米酒',
+  '特別本釀造',
+  '本釀造',
+  '其他/未標註',
+];
+
+function MiniRadar({
+  scores,
+}: {
+  scores: Record<string, number | undefined>;
+}) {
   const size = 190;
   const cx = size / 2;
   const cy = size / 2;
   const r = 60;
   const n = RADAR_FIELDS.length;
 
-  const angleOf = (i: number) => (Math.PI * 2 * i) / n - Math.PI / 2;
+  const angleOf = (i: number) =>
+    (Math.PI * 2 * i) / n - Math.PI / 2;
 
   const axisPoints = RADAR_FIELDS.map((_, i) => {
     const a = angleOf(i);
-    return { x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) };
+
+    return {
+      x: cx + r * Math.cos(a),
+      y: cy + r * Math.sin(a),
+    };
   });
 
   const valuePoints = RADAR_FIELDS.map((f, i) => {
-    const val = Math.min(5, Math.max(0, scores[f.name] ?? 0));
+    const val = Math.min(
+      5,
+      Math.max(0, scores[f.name] ?? 0)
+    );
+
     const a = angleOf(i);
-    return { x: cx + (r * val / 5) * Math.cos(a), y: cy + (r * val / 5) * Math.sin(a) };
+
+    return {
+      x: cx + (r * val / 5) * Math.cos(a),
+      y: cy + (r * val / 5) * Math.sin(a),
+    };
   });
 
-  const toPath = (pts: { x: number; y: number }[]) =>
-    pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ') + ' Z';
+  const toPath = (
+    pts: { x: number; y: number }[]
+  ) =>
+    pts
+      .map(
+        (p, i) =>
+          `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`
+      )
+      .join(' ') + ' Z';
 
   const grids = [1, 2, 3, 4, 5].map((level) => {
     const pts = RADAR_FIELDS.map((_, i) => {
       const a = angleOf(i);
-      return { x: cx + (r * level / 5) * Math.cos(a), y: cy + (r * level / 5) * Math.sin(a) };
+
+      return {
+        x: cx + (r * level / 5) * Math.cos(a),
+        y: cy + (r * level / 5) * Math.sin(a),
+      };
     });
+
     return toPath(pts);
   });
 
   return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} overflow="visible">
+    <svg
+      width={size}
+      height={size}
+      viewBox={`0 0 ${size} ${size}`}
+      overflow="visible"
+    >
       {grids.map((d, i) => (
-        <path key={i} d={d} fill="none" stroke="#374151" strokeWidth="0.8" />
+        <path
+          key={i}
+          d={d}
+          fill="none"
+          stroke="#374151"
+          strokeWidth="0.8"
+        />
       ))}
+
       {axisPoints.map((p, i) => (
-        <line key={i} x1={cx} y1={cy} x2={p.x} y2={p.y} stroke="#374151" strokeWidth="0.8" />
+        <line
+          key={i}
+          x1={cx}
+          y1={cy}
+          x2={p.x}
+          y2={p.y}
+          stroke="#374151"
+          strokeWidth="0.8"
+        />
       ))}
-      <path d={toPath(valuePoints)} fill="rgba(251,191,36,0.25)" stroke="#fbbf24" strokeWidth="1.5" />
+
+      <path
+        d={toPath(valuePoints)}
+        fill="rgba(251,191,36,0.25)"
+        stroke="#fbbf24"
+        strokeWidth="1.5"
+      />
+
       {RADAR_FIELDS.map((f, i) => {
         const a = angleOf(i);
         const lx = cx + (r + 20) * Math.cos(a);
         const ly = cy + (r + 20) * Math.sin(a);
+
         return (
-          <text key={f.name} x={lx} y={ly} textAnchor="middle" dominantBaseline="middle" fill="#9ca3af" fontSize="10">
+          <text
+            key={f.name}
+            x={lx}
+            y={ly}
+            textAnchor="middle"
+            dominantBaseline="middle"
+            fill="#9ca3af"
+            fontSize="10"
+          >
             {f.label}
           </text>
         );
@@ -87,137 +164,369 @@ function MiniRadar({ scores }: { scores: Record<string, number | undefined> }) {
   );
 }
 
-const SAKE_TYPES = [
-  '純米大吟釀', '大吟釀', '純米吟釀', '吟釀',
-  '特別純米酒', '純米酒', '特別本釀造', '本釀造', '其他/未標註',
-];
-
-export function EditSakePage({ sake, allSake, onSave, onDelete, onBack }: EditSakePageProps) {
+export function EditSakePage({
+  sake,
+  allSake,
+  onSave,
+  onDelete,
+  onBack,
+}: EditSakePageProps) {
   const [formData, setFormData] = useState({
     name: sake.name || '',
     brewery: sake.brewery || '',
     prefecture: sake.prefecture || '',
     type: sake.type || '',
-    rice: sake.rice || sake.riceParsed || '',
+
+    rice: sake.riceParsed || sake.rice || '',
+
+    // 精米步合
+    seimai: sake.seimai || '',
+    kojiSeimai: sake.kojiSeimai || '',
+    kakeSeimai: sake.kakeSeimai || '',
+
     brewingNote: sake.brewingNote || '',
     otherNote: sake.otherNote || '',
-    alcoholContent: String(sake.alcoholContent || '').replace('%', ''),
+
+    alcoholContent: String(
+      sake.alcoholContent || ''
+    ).replace('%', ''),
+
     sakeLevel: sake.sakeLevel || '',
     yeast: sake.yeast || '',
     bodyType: sake.bodyType || '',
     flavor: sake.flavor || '',
-    description: sake.description || sake.notes || '',
-    aroma: sake.aroma != null ? String(sake.aroma) : '',
-    smoothness: sake.smoothness != null ? String(sake.smoothness) : '',
-    tasteScore: sake.tasteScore != null ? String(sake.tasteScore) : '',
-    complexity: sake.complexity != null ? String(sake.complexity) : '',
-    sweetness: sake.sweetness != null ? String(sake.sweetness) : '',
-    rating: sake.rating != null ? String(sake.rating) : '',
+
+    description:
+      sake.description ||
+      sake.notes ||
+      '',
+
+    aroma:
+      sake.aroma != null
+        ? String(sake.aroma)
+        : '',
+
+    smoothness:
+      sake.smoothness != null
+        ? String(sake.smoothness)
+        : '',
+
+    tasteScore:
+      sake.tasteScore != null
+        ? String(sake.tasteScore)
+        : '',
+
+    complexity:
+      sake.complexity != null
+        ? String(sake.complexity)
+        : '',
+
+    sweetness:
+      sake.sweetness != null
+        ? String(sake.sweetness)
+        : '',
+
+    rating:
+      sake.rating != null
+        ? String(sake.rating)
+        : '',
+
     imageUrl: sake.imageUrl || '',
     firstDrinkDate: sake.firstDrinkDate || '',
   });
+
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+  const handleChange = (
+    e: React.ChangeEvent<
+      HTMLInputElement |
+      HTMLTextAreaElement |
+      HTMLSelectElement
+    >
+  ) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
   };
 
   const handleImageUpload = (url: string) => {
-    setFormData((prev) => ({ ...prev, imageUrl: url }));
+    setFormData((prev) => ({
+      ...prev,
+      imageUrl: url,
+    }));
   };
 
-  const parseScore = (v: string): number | undefined => {
-    if (!v.trim()) return undefined;
+  const parseScore = (
+    v: string
+  ): number | undefined => {
+    if (!v.trim()) {
+      return undefined;
+    }
+
     const n = parseFloat(v);
-    return isNaN(n) ? undefined : Math.min(5, Math.max(0, n));
+
+    return isNaN(n)
+      ? undefined
+      : Math.min(5, Math.max(0, n));
   };
 
-  const radarScores = useMemo(() => ({
-    aroma: parseScore(formData.aroma),
-    smoothness: parseScore(formData.smoothness),
-    tasteScore: parseScore(formData.tasteScore),
-    complexity: parseScore(formData.complexity),
-    sweetness: parseScore(formData.sweetness),
-  }), [formData.aroma, formData.smoothness, formData.tasteScore, formData.complexity, formData.sweetness]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.name.trim()) { alert('請輸入酒名'); return; }
-    setSaving(true);
-    await onSave(sake.id, {
-      name: formData.name.trim(),
-      brewery: formData.brewery.trim() || undefined,
-      prefecture: formData.prefecture.trim(),
-      type: formData.type.trim() || undefined,
-      rice: formData.rice.trim() || undefined,
-      brewingNote: formData.brewingNote.trim() || undefined,
-      otherNote: formData.otherNote.trim() || undefined,
-      alcoholContent: formData.alcoholContent.trim() || undefined,
-      sakeLevel: formData.sakeLevel.trim() || undefined,
-      yeast: formData.yeast.trim() || undefined,
-      bodyType: formData.bodyType.trim() || undefined,
-      flavor: formData.flavor.trim() || undefined,
-      description: formData.description.trim() || undefined,
+  const radarScores = useMemo(
+    () => ({
       aroma: parseScore(formData.aroma),
       smoothness: parseScore(formData.smoothness),
       tasteScore: parseScore(formData.tasteScore),
       complexity: parseScore(formData.complexity),
       sweetness: parseScore(formData.sweetness),
-      rating: formData.rating ? parseFloat(formData.rating) : undefined,
-      imageUrl: formData.imageUrl.trim() || undefined,
-      firstDrinkDate: formData.firstDrinkDate.trim() || undefined,
-    });
+    }),
+    [
+      formData.aroma,
+      formData.smoothness,
+      formData.tasteScore,
+      formData.complexity,
+      formData.sweetness,
+    ]
+  );
+
+  const handleSubmit = async (
+    e: React.FormEvent
+  ) => {
+    e.preventDefault();
+
+    if (!formData.name.trim()) {
+      alert('請輸入酒名');
+      return;
+    }
+
+    setSaving(true);
+
+    try {
+      await onSave(sake.id, {
+        name:
+          formData.name.trim(),
+
+        brewery:
+          formData.brewery.trim() ||
+          undefined,
+
+        prefecture:
+          formData.prefecture.trim(),
+
+        type:
+          formData.type.trim() ||
+          undefined,
+
+        rice:
+          formData.rice.trim() ||
+          undefined,
+
+        // 精米步合
+        seimai:
+          formData.seimai.trim() ||
+          undefined,
+
+        kojiSeimai:
+          formData.kojiSeimai.trim() ||
+          undefined,
+
+        kakeSeimai:
+          formData.kakeSeimai.trim() ||
+          undefined,
+
+        brewingNote:
+          formData.brewingNote.trim() ||
+          undefined,
+
+        otherNote:
+          formData.otherNote.trim() ||
+          undefined,
+
+        alcoholContent:
+          formData.alcoholContent.trim() ||
+          undefined,
+
+        sakeLevel:
+          formData.sakeLevel.trim() ||
+          undefined,
+
+        yeast:
+          formData.yeast.trim() ||
+          undefined,
+
+        bodyType:
+          formData.bodyType.trim() ||
+          undefined,
+
+        flavor:
+          formData.flavor.trim() ||
+          undefined,
+
+        description:
+          formData.description.trim() ||
+          undefined,
+
+        aroma:
+          parseScore(formData.aroma),
+
+        smoothness:
+          parseScore(formData.smoothness),
+
+        tasteScore:
+          parseScore(formData.tasteScore),
+
+        complexity:
+          parseScore(formData.complexity),
+
+        sweetness:
+          parseScore(formData.sweetness),
+
+        rating:
+          formData.rating
+            ? parseFloat(formData.rating)
+            : undefined,
+
+        imageUrl:
+          formData.imageUrl.trim() ||
+          undefined,
+
+        firstDrinkDate:
+          formData.firstDrinkDate.trim() ||
+          undefined,
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const inputClass = "w-full px-3 py-2.5 bg-gray-800 border border-gray-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent placeholder-gray-500 text-sm";
-  const labelClass = "block text-sm font-semibold text-gray-300 mb-1.5";
-  const sectionClass = "pt-4 border-t border-gray-700";
+  const inputClass =
+    'w-full px-3 py-2.5 bg-gray-800 border border-gray-600 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent placeholder-gray-500 text-sm';
+
+  const labelClass =
+    'block text-sm font-semibold text-gray-300 mb-1.5';
+
+  const sectionClass =
+    'pt-4 border-t border-gray-700';
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-6">
+      {/* 頁首 */}
       <div className="flex items-center gap-3 mb-6">
-        <button onClick={onBack} className="flex items-center gap-1.5 bg-gray-800 hover:bg-gray-700 active:bg-gray-600 text-gray-200 px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors border border-gray-700">
+        <button
+          onClick={onBack}
+          className="flex items-center gap-1.5 bg-gray-800 hover:bg-gray-700 active:bg-gray-600 text-gray-200 px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors border border-gray-700"
+        >
           <ArrowLeft size={18} />
         </button>
+
         <div className="flex-1 min-w-0">
-          <h1 className="text-xl font-bold text-amber-400">編輯酒款資訊</h1>
-          <p className="text-gray-500 text-xs truncate">{sake.name}</p>
+          <h1 className="text-xl font-bold text-amber-400">
+            編輯酒款資訊
+          </h1>
+
+          <p className="text-gray-500 text-xs truncate">
+            {sake.name}
+          </p>
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="bg-gray-900 rounded-xl border border-gray-700 p-6 space-y-4">
+      <form
+        onSubmit={handleSubmit}
+        className="bg-gray-900 rounded-xl border border-gray-700 p-6 space-y-4"
+      >
         {/* 照片 */}
         <div>
-          <label className={labelClass}>酒款照片</label>
-          <ImageUploader currentImageUrl={formData.imageUrl} onUploadComplete={handleImageUpload} />
+          <label className={labelClass}>
+            酒款照片
+          </label>
+
+          <ImageUploader
+            currentImageUrl={formData.imageUrl}
+            onUploadComplete={handleImageUpload}
+          />
+
           <div className="mt-2">
-            <p className="text-xs text-gray-500 mb-1">或輸入圖片網址</p>
-            <input type="url" name="imageUrl" value={formData.imageUrl} onChange={handleChange} placeholder="https://example.com/image.jpg" className={inputClass} />
+            <p className="text-xs text-gray-500 mb-1">
+              或輸入圖片網址
+            </p>
+
+            <input
+              type="url"
+              name="imageUrl"
+              value={formData.imageUrl}
+              onChange={handleChange}
+              placeholder="https://example.com/image.jpg"
+              className={inputClass}
+            />
           </div>
         </div>
 
         {/* 基本資訊 */}
         <div className={sectionClass}>
-          <p className="text-xs text-amber-500 font-semibold uppercase tracking-wider mb-3">基本資訊</p>
+          <p className="text-xs text-amber-500 font-semibold uppercase tracking-wider mb-3">
+            基本資訊
+          </p>
+
           <div className="space-y-3">
             <div>
-              <label className={labelClass}>酒名 <span className="text-red-400">*</span></label>
-              <input type="text" name="name" value={formData.name} onChange={handleChange} className={inputClass} required />
+              <label className={labelClass}>
+                酒名{' '}
+                <span className="text-red-400">
+                  *
+                </span>
+              </label>
+
+              <input
+                type="text"
+                name="name"
+                value={formData.name}
+                onChange={handleChange}
+                className={inputClass}
+                required
+              />
             </div>
+
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className={labelClass}>釀造廠</label>
-                <input type="text" name="brewery" value={formData.brewery} onChange={handleChange} placeholder="例：旭酒造" className={inputClass} />
+                <label className={labelClass}>
+                  釀造廠
+                </label>
+
+                <input
+                  type="text"
+                  name="brewery"
+                  value={formData.brewery}
+                  onChange={handleChange}
+                  placeholder="例：旭酒造"
+                  className={inputClass}
+                />
               </div>
+
               <div>
-                <label className={labelClass}>縣市</label>
-                <select name="prefecture" value={formData.prefecture} onChange={handleChange} className={inputClass}>
-                  <option value="">選擇縣市</option>
-                  {PREFECTURES.map((p ) => (
-                    <option key={p} value={p}>{p}</option>
+                <label className={labelClass}>
+                  縣市
+                </label>
+
+                <select
+                  name="prefecture"
+                  value={formData.prefecture}
+                  onChange={handleChange}
+                  className={inputClass}
+                >
+                  <option value="">
+                    選擇縣市
+                  </option>
+
+                  {PREFECTURES.map((p) => (
+                    <option
+                      key={p}
+                      value={p}
+                    >
+                      {p}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -227,80 +536,305 @@ export function EditSakePage({ sake, allSake, onSave, onDelete, onBack }: EditSa
 
         {/* 酒款分類 */}
         <div className={sectionClass}>
-          <p className="text-xs text-amber-500 font-semibold uppercase tracking-wider mb-3">酒款分類</p>
+          <p className="text-xs text-amber-500 font-semibold uppercase tracking-wider mb-3">
+            酒款分類
+          </p>
+
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className={labelClass}>酒體</label>
-              <select name="type" value={formData.type} onChange={handleChange} className={inputClass}>
-                <option value="">選擇酒體</option>
+              <label className={labelClass}>
+                酒體
+              </label>
+
+              <select
+                name="type"
+                value={formData.type}
+                onChange={handleChange}
+                className={inputClass}
+              >
+                <option value="">
+                  選擇酒體
+                </option>
+
                 {SAKE_TYPES.map((t) => (
-                  <option key={t} value={t}>{t}</option>
+                  <option
+                    key={t}
+                    value={t}
+                  >
+                    {t}
+                  </option>
                 ))}
-                {formData.type && !SAKE_TYPES.includes(formData.type) && (
-                  <option value={formData.type}>{formData.type}</option>
-                )}
+
+                {formData.type &&
+                  !SAKE_TYPES.includes(formData.type) && (
+                    <option value={formData.type}>
+                      {formData.type}
+                    </option>
+                  )}
               </select>
             </div>
+
             <div>
-              <label className={labelClass}>酒體分類</label>
-              <select name="bodyType" value={formData.bodyType} onChange={handleChange} className={inputClass}>
-                <option value="">選擇分類</option>
-                <option value="薰">薰（華麗香氣）</option>
-                <option value="爽">爽（清爽俐落）</option>
-                <option value="醇">醇（豐醇厚實）</option>
-                <option value="熟">熟（熟成風味）</option>
+              <label className={labelClass}>
+                酒體分類
+              </label>
+
+              <select
+                name="bodyType"
+                value={formData.bodyType}
+                onChange={handleChange}
+                className={inputClass}
+              >
+                <option value="">
+                  選擇分類
+                </option>
+                <option value="薰">
+                  薰（華麗香氣）
+                </option>
+                <option value="爽">
+                  爽（清爽俐落）
+                </option>
+                <option value="醇">
+                  醇（豐醇厚實）
+                </option>
+                <option value="熟">
+                  熟（熟成風味）
+                </option>
               </select>
             </div>
+
             <div>
-              <label className={labelClass}>風味分類</label>
-              <input type="text" name="flavor" value={formData.flavor} onChange={handleChange} placeholder="例：濃郁、細緻" className={inputClass} />
+              <label className={labelClass}>
+                風味分類
+              </label>
+
+              <input
+                type="text"
+                name="flavor"
+                value={formData.flavor}
+                onChange={handleChange}
+                placeholder="例：濃郁、細緻"
+                className={inputClass}
+              />
             </div>
+
             <div>
-              <label className={labelClass}>米種</label>
-              <input type="text" name="rice" value={formData.rice} onChange={handleChange} placeholder="例：山田錦/50" className={inputClass} />
+              <label className={labelClass}>
+                米種
+              </label>
+
+              <input
+                type="text"
+                name="rice"
+                value={formData.rice}
+                onChange={handleChange}
+                placeholder="例：山田錦"
+                className={inputClass}
+              />
             </div>
+          </div>
+
+          {/* 精米步合 */}
+          <div className="mt-4">
+            <label className={labelClass}>
+              精米步合
+            </label>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {/* 一般精米 */}
+              <div>
+                <p className="text-xs text-gray-500 mb-1">
+                  精米
+                </p>
+
+                <div className="relative">
+                  <input
+                    type="number"
+                    name="seimai"
+                    value={formData.seimai}
+                    onChange={handleChange}
+                    placeholder="50"
+                    min="1"
+                    max="100"
+                    step="1"
+                    className={inputClass + ' pr-9'}
+                  />
+
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
+                    %
+                  </span>
+                </div>
+              </div>
+
+              {/* 麴米 */}
+              <div>
+                <p className="text-xs text-gray-500 mb-1">
+                  麴米
+                </p>
+
+                <div className="relative">
+                  <input
+                    type="number"
+                    name="kojiSeimai"
+                    value={formData.kojiSeimai}
+                    onChange={handleChange}
+                    placeholder="40"
+                    min="1"
+                    max="100"
+                    step="1"
+                    className={inputClass + ' pr-9'}
+                  />
+
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
+                    %
+                  </span>
+                </div>
+              </div>
+
+              {/* 掛米 */}
+              <div>
+                <p className="text-xs text-gray-500 mb-1">
+                  掛米
+                </p>
+
+                <div className="relative">
+                  <input
+                    type="number"
+                    name="kakeSeimai"
+                    value={formData.kakeSeimai}
+                    onChange={handleChange}
+                    placeholder="50"
+                    min="1"
+                    max="100"
+                    step="1"
+                    className={inputClass + ' pr-9'}
+                  />
+
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
+                    %
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <p className="text-xs text-gray-500 mt-2">
+              若酒標只標示單一精米步合，只填「精米」即可；若分別標示麴米與掛米，再填入對應欄位。
+            </p>
           </div>
         </div>
 
         {/* 製造資訊 */}
         <div className={sectionClass}>
-          <p className="text-xs text-amber-500 font-semibold uppercase tracking-wider mb-3">製造資訊</p>
+          <p className="text-xs text-amber-500 font-semibold uppercase tracking-wider mb-3">
+            製造資訊
+          </p>
+
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className={labelClass}>製法備註</label>
-              <input type="text" name="brewingNote" value={formData.brewingNote} onChange={handleChange} placeholder="例：生酒、無濾過" className={inputClass} />
+              <label className={labelClass}>
+                製法備註
+              </label>
+
+              <input
+                type="text"
+                name="brewingNote"
+                value={formData.brewingNote}
+                onChange={handleChange}
+                placeholder="例：生酒、無濾過"
+                className={inputClass}
+              />
             </div>
+
             <div>
-              <label className={labelClass}>酒精濃度（%）</label>
-              <input type="number" name="alcoholContent" value={formData.alcoholContent} onChange={handleChange} placeholder="例：15" min="0" max="100" step="0.1" className={inputClass} />
+              <label className={labelClass}>
+                酒精濃度（%）
+              </label>
+
+              <input
+                type="number"
+                name="alcoholContent"
+                value={formData.alcoholContent}
+                onChange={handleChange}
+                placeholder="例：15"
+                min="0"
+                max="100"
+                step="0.1"
+                className={inputClass}
+              />
             </div>
+
             <div>
-              <label className={labelClass}>日本酒度</label>
-              <input type="text" name="sakeLevel" value={formData.sakeLevel} onChange={handleChange} placeholder="例：+3" className={inputClass} />
+              <label className={labelClass}>
+                日本酒度
+              </label>
+
+              <input
+                type="text"
+                name="sakeLevel"
+                value={formData.sakeLevel}
+                onChange={handleChange}
+                placeholder="例：+3"
+                className={inputClass}
+              />
             </div>
+
             <div>
-              <label className={labelClass}>其他備註</label>
-              <input type="text" name="otherNote" value={formData.otherNote} onChange={handleChange} placeholder="例：限定款" className={inputClass} />
+              <label className={labelClass}>
+                其他備註
+              </label>
+
+              <input
+                type="text"
+                name="otherNote"
+                value={formData.otherNote}
+                onChange={handleChange}
+                placeholder="例：限定款"
+                className={inputClass}
+              />
             </div>
           </div>
+
           <div className="mt-3">
-            <label className={labelClass}>酵母</label>
-            <input type="text" name="yeast" value={formData.yeast} onChange={handleChange} placeholder="例：協會1801" className={inputClass} />
+            <label className={labelClass}>
+              酵母
+            </label>
+
+            <input
+              type="text"
+              name="yeast"
+              value={formData.yeast}
+              onChange={handleChange}
+              placeholder="例：協會1801"
+              className={inputClass}
+            />
           </div>
         </div>
 
         {/* 五維評分 */}
         <div className={sectionClass}>
-          <p className="text-xs text-amber-500 font-semibold uppercase tracking-wider mb-3">風味評分（0–5）</p>
+          <p className="text-xs text-amber-500 font-semibold uppercase tracking-wider mb-3">
+            風味評分（0–5）
+          </p>
+
           <div className="flex gap-4 items-start">
             <div className="flex-1 grid grid-cols-2 gap-3 sm:grid-cols-3">
               {RADAR_FIELDS.map((field) => (
                 <div key={field.name}>
-                  <label className={labelClass}>{field.label}</label>
+                  <label className={labelClass}>
+                    {field.label}
+                  </label>
+
                   <input
                     type="number"
                     name={field.name}
-                    value={(formData as Record<string, string>)[field.name]}
+                    value={
+                      (
+                        formData as Record<
+                          string,
+                          string
+                        >
+                      )[field.name]
+                    }
                     onChange={handleChange}
                     placeholder="0–5"
                     min="0"
@@ -311,45 +845,102 @@ export function EditSakePage({ sake, allSake, onSave, onDelete, onBack }: EditSa
                 </div>
               ))}
             </div>
+
             <div className="flex-shrink-0 hidden sm:block">
-              <MiniRadar scores={radarScores} />
+              <MiniRadar
+                scores={radarScores}
+              />
             </div>
           </div>
+
           <div className="sm:hidden flex justify-center mt-3">
-            <MiniRadar scores={radarScores} />
+            <MiniRadar
+              scores={radarScores}
+            />
           </div>
         </div>
 
         {/* 綜合評分 */}
         <div className={sectionClass}>
-          <p className="text-xs text-amber-500 font-semibold uppercase tracking-wider mb-3">綜合評比</p>
+          <p className="text-xs text-amber-500 font-semibold uppercase tracking-wider mb-3">
+            綜合評比
+          </p>
+
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className={labelClass}>個人綜合評分（0–5）</label>
-              <input type="number" name="rating" value={formData.rating} onChange={handleChange} placeholder="例：4.5" min="0" max="5" step="0.1" className={inputClass} />
+              <label className={labelClass}>
+                個人綜合評分（0–5）
+              </label>
+
+              <input
+                type="number"
+                name="rating"
+                value={formData.rating}
+                onChange={handleChange}
+                placeholder="例：4.5"
+                min="0"
+                max="5"
+                step="0.1"
+                className={inputClass}
+              />
             </div>
+
             <div>
-              <label className={labelClass}>品飲日期</label>
-              <input type="text" name="firstDrinkDate" value={formData.firstDrinkDate} onChange={handleChange} placeholder="例：2024/3/15" className={inputClass} />
+              <label className={labelClass}>
+                品飲日期
+              </label>
+
+              <input
+                type="text"
+                name="firstDrinkDate"
+                value={formData.firstDrinkDate}
+                onChange={handleChange}
+                placeholder="例：2024/3/15"
+                className={inputClass}
+              />
             </div>
           </div>
         </div>
 
         {/* 品飲筆記 */}
         <div className={sectionClass}>
-          <label className={labelClass}>品飲筆記</label>
-          <textarea name="description" value={formData.description} onChange={handleChange} placeholder="記錄您對這款酒的感受..." rows={5} className={inputClass} />
+          <label className={labelClass}>
+            品飲筆記
+          </label>
+
+          <textarea
+            name="description"
+            value={formData.description}
+            onChange={handleChange}
+            placeholder="記錄您對這款酒的感受..."
+            rows={5}
+            className={inputClass}
+          />
         </div>
 
         {/* 按鈕區 */}
-        <div className={`${sectionClass} flex gap-3`}>
-          <button type="button" onClick={onBack} className="flex-1 flex items-center justify-center gap-2 font-semibold py-3 px-4 rounded-lg border border-gray-600 text-gray-300 hover:bg-gray-800 transition-colors">
+        <div
+          className={`${sectionClass} flex gap-3`}
+        >
+          <button
+            type="button"
+            onClick={onBack}
+            className="flex-1 flex items-center justify-center gap-2 font-semibold py-3 px-4 rounded-lg border border-gray-600 text-gray-300 hover:bg-gray-800 transition-colors"
+          >
             <X size={18} />
             取消編輯
           </button>
-          <button type="submit" disabled={saving} className="flex-1 flex items-center justify-center gap-2 font-semibold py-3 px-4 rounded-lg bg-amber-600 hover:bg-amber-500 text-white transition-colors disabled:opacity-60">
+
+          <button
+            type="submit"
+            disabled={saving}
+            className="flex-1 flex items-center justify-center gap-2 font-semibold py-3 px-4 rounded-lg bg-amber-600 hover:bg-amber-500 text-white transition-colors disabled:opacity-60"
+          >
             <Save size={18} />
-            {saving ? '儲存中...' : '儲存變更'}
+
+            {saving
+              ? '儲存中...'
+              : '儲存變更'}
           </button>
         </div>
 
@@ -357,7 +948,9 @@ export function EditSakePage({ sake, allSake, onSave, onDelete, onBack }: EditSa
         <div className="pt-2">
           <button
             type="button"
-            onClick={() => setShowDeleteConfirm(true)}
+            onClick={() =>
+              setShowDeleteConfirm(true)
+            }
             className="w-full flex items-center justify-center gap-2 font-semibold py-3 px-4 rounded-lg border border-red-800 text-red-400 hover:bg-red-900/30 transition-colors"
           >
             <Trash2 size={18} />
@@ -368,38 +961,67 @@ export function EditSakePage({ sake, allSake, onSave, onDelete, onBack }: EditSa
 
       {/* 刪除確認 Modal */}
       {showDeleteConfirm && (
-        <div className="fixed inset-0 flex items-center justify-center z-50" style={{ backgroundColor: 'rgba(0,0,0,0.75)' }}>
+        <div
+          className="fixed inset-0 flex items-center justify-center z-50"
+          style={{
+            backgroundColor:
+              'rgba(0,0,0,0.75)',
+          }}
+        >
           <div className="bg-gray-900 border border-gray-700 rounded-2xl p-6 mx-4 max-w-sm w-full shadow-2xl">
             <div className="flex items-center gap-3 mb-3">
               <div className="w-10 h-10 rounded-full bg-red-900/50 flex items-center justify-center flex-shrink-0">
-                <Trash2 size={20} className="text-red-400" />
+                <Trash2
+                  size={20}
+                  className="text-red-400"
+                />
               </div>
-              <h2 className="text-lg font-bold text-gray-100">確認刪除</h2>
+
+              <h2 className="text-lg font-bold text-gray-100">
+                確認刪除
+              </h2>
             </div>
-            <p className="text-gray-400 text-sm mb-1">確定要刪除以下酒款嗎？</p>
-            <p className="text-amber-400 font-semibold mb-4">{sake.name}</p>
-            <p className="text-red-400 text-xs mb-5">此操作無法復原，試算表中的資料也會一併刪除。</p>
+
+            <p className="text-gray-400 text-sm mb-1">
+              確定要刪除以下酒款嗎？
+            </p>
+
+            <p className="text-amber-400 font-semibold mb-4">
+              {sake.name}
+            </p>
+
+            <p className="text-red-400 text-xs mb-5">
+              此操作無法復原，試算表中的資料也會一併刪除。
+            </p>
+
             <div className="flex gap-3">
               <button
                 type="button"
-                onClick={() => setShowDeleteConfirm(false)}
+                onClick={() =>
+                  setShowDeleteConfirm(false)
+                }
                 disabled={deleting}
                 className="flex-1 py-2.5 rounded-lg border border-gray-600 text-gray-300 hover:bg-gray-800 font-semibold transition-colors"
               >
                 取消
               </button>
+
               <button
                 type="button"
                 disabled={deleting}
                 onClick={async () => {
                   setDeleting(true);
+
                   await onDelete(sake.id);
+
                   setDeleting(false);
                   setShowDeleteConfirm(false);
                 }}
                 className="flex-1 py-2.5 rounded-lg bg-red-700 hover:bg-red-600 text-white font-semibold transition-colors disabled:opacity-60"
               >
-                {deleting ? '刪除中...' : '確認刪除'}
+                {deleting
+                  ? '刪除中...'
+                  : '確認刪除'}
               </button>
             </div>
           </div>
